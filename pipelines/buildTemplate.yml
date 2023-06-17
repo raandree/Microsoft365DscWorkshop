@@ -1,0 +1,77 @@
+parameters:
+- name: buildEnvironments
+  type: object
+  default: {}
+
+stages:
+  - ${{ each buildEnvironment in parameters.buildEnvironments }}:
+    - stage: Build${{ buildEnvironment.Name }}
+      displayName: Build of environment ${{ buildEnvironment.Name }}
+      pool:
+        name: DSC
+        demands:
+          - buildEnvironment -equals ${{ buildEnvironment.Name }}
+      dependsOn: []
+
+      jobs:
+        - job: Build${{ buildEnvironment.Name }}
+          displayName: Build of environment ${{ buildEnvironment.Name }}
+
+          steps:
+
+            - task: PowerShell@2
+              name: displayEnvVariables
+              displayName: 'Display Environment Variables'
+              inputs:
+                targetType: inline
+                script: |
+                  dir -Path env: | Format-Table -Property Name, Value -AutoSize | Out-String | Write-Host
+
+            - task: PowerShell@2
+              name: clean
+              displayName: 'Clean Program Files Modules'
+              inputs:
+                targetType: inline
+                script: |
+                  $programFileModulePath = 'C:\Program Files\WindowsPowerShell\Modules'
+                  $modulesToKeep = 'Microsoft.PowerShell.Operation.Validation', 'PackageManagement', 'Pester', 'PowerShellGet', 'PSReadline'
+
+                  Get-Process -Name WmiPrvSE -IncludeUserName -ErrorAction Ignore | Where-Object UserName -eq 'NT AUTHORITY\SYSTEM' | Sort-Object -Property WS -Descending | Select-Object -First 1 | Stop-Process
+
+                  Start-Sleep -Seconds 2
+
+                  dir -Path $programFileModulePath | Where-Object { $_.BaseName -notin $modulesToKeep } | Remove-Item -Recurse -Force
+
+            - task: PowerShell@2
+              name: build
+              displayName: 'Build DSC Artifacts'
+              inputs:
+                filePath: './build.ps1'
+                arguments: '-ResolveDependency -Tasks build -Filter { $_.Environment -eq $env:BuildEnvironment }'
+                pwsh: false
+              #env:
+              #  ModuleVersion: $(NuGetVersionV2)
+
+            - task: PowerShell@2
+              name: pack
+              displayName: 'Pack DSC Artifacts'
+              inputs:
+                filePath: './build.ps1'
+                arguments: '-ResolveDependency -Tasks pack -Filter { $_.Environment -eq $env:BuildEnvironment }'
+              enabled: false
+
+            - task: PublishPipelineArtifact@1
+              displayName: Publish MOF Files for ${{ buildEnvironment.Name }}
+              inputs:
+                targetPath: '$(buildFolderName)/MOF'
+                artifact: MOF_${{ buildEnvironment.Name }}
+                publishLocation: 'pipeline'
+                parallel: true
+
+            - task: PublishPipelineArtifact@1
+              displayName: Publish RSOP Files for ${{ buildEnvironment.Name }}
+              inputs:
+                targetPath: '$(buildFolderName)/RSOP'
+                artifact: RSOP_${{ buildEnvironment.Name }}
+                publishLocation: 'pipeline'
+                parallel: true

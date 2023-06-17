@@ -1,0 +1,11 @@
+IsSingleInstance: Yes
+AllowGuestsToAccessGroups: true
+AllowGuestsToBeGroupOwner: false
+AllowToAddGuests: true
+EnableGroupCreation: false
+GroupCreationAllowedGroupName: All Company
+GuestUsageGuidelinesUrl: https://contoso.com/guestusage
+UsageGuidelinesUrl: https://contoso.com/usage
+Ensure: Present
+TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+ManagedIdentity: true

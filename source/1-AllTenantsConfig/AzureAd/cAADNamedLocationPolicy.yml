@@ -1,0 +1,32 @@
+Items:
+  - DisplayName: Company Network
+    IpRanges:
+      - 2.1.1.1/32
+      - 1.2.2.2/32
+    IsTrusted: true
+    OdataType: "#microsoft.graph.ipNamedLocation"
+    Ensure: Present
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true
+  - DisplayName: Allowed Countries
+    CountriesAndRegions:
+      - GH
+      - AX
+      - DZ
+      - AI
+      - AM
+    IncludeUnknownCountriesAndRegions: false
+    OdataType: "#microsoft.graph.countryNamedLocation"
+    Ensure: Present
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true
+  - DisplayName: Blocked Countries
+    CountriesAndRegions:
+      - RU
+      - AF
+      - CN
+    IncludeUnknownCountriesAndRegions: false
+    OdataType: "#microsoft.graph.countryNamedLocation"
+    Ensure: Present
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true

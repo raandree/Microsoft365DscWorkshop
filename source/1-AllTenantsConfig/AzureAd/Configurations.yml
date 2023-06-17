@@ -1,0 +1,6 @@
+- cAADNamedLocationPolicy
+- cAADConditionalAccessPolicy
+- cAADGroup
+- cAADAuthorizationPolicy
+- cAADGroupsSettings
+- cAADSecurityDefaults

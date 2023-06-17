@@ -1,0 +1,47 @@
+parameters:
+- name: buildEnvironments
+  type: object
+  default: {}
+
+stages:
+  - ${{ each buildEnvironment in parameters.buildEnvironments }}:
+    - stage: StartConfig${{ buildEnvironment.Name }}
+      displayName: Start DSC Configuration of environment ${{ buildEnvironment.Name }}
+      pool:
+        name: DSC
+        demands:
+          - buildEnvironment -equals ${{ buildEnvironment.Name }}
+      dependsOn:
+      - Build${{ buildEnvironment.Name }}
+      - ${{ if buildEnvironment.DependsOn }}:
+        - TestConfig${{ buildEnvironment.DependsOn }}
+
+      jobs:
+        - deployment: ${{ buildEnvironment.Name }}
+          displayName: Deployment in ${{ buildEnvironment.Name }}
+          environment: ${{ buildEnvironment.Name }}
+          pool:
+            name: DSC
+            demands:
+              - buildEnvironment -equals ${{ buildEnvironment.Name }}
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                - download: None
+
+                - task: PowerShell@2
+                  name: displayEnvVariables2
+                  displayName: 'Display Environment Variables'
+                  inputs:
+                    targetType: inline
+                    script: |
+                      dir -Path env: | Format-Table -Property Name, Value -AutoSize | Out-String | Write-Host
+
+                - task: PowerShell@2
+                  name: deploy
+                  displayName: 'Deploy DSC Configuration'
+                  inputs:
+                    filePath: './build.ps1'
+                    arguments: '-Tasks startConfiguration'
+                    pwsh: false

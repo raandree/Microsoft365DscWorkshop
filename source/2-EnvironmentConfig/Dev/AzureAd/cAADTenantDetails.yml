@@ -1,0 +1,7 @@
+IsSingleInstance: Yes
+TechnicalNotificationMails: dev@contoso.com
+SecurityComplianceNotificationPhones: +1123456789"
+SecurityComplianceNotificationMails: example@contoso.com
+MarketingNotificationEmails: example@contoso.com
+TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+ManagedIdentity: true

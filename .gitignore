@@ -1,0 +1,10 @@
+!output/
+
+output/*
+!output/RequiredModules
+
+output/RequiredModules/*
+
+!output/RequiredModules/DscConfig.M365
+
+*.bkp

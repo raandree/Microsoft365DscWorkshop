@@ -1,0 +1,82 @@
+DatumStructure:
+  - StoreName: AllNodes
+    StoreProvider: Datum::File
+    StoreOptions:
+      Path: BuildAgents
+  - StoreName: 2-EnvironmentConfig
+    StoreProvider: Datum::File
+    StoreOptions:
+      Path: 2-EnvironmentConfig
+  - StoreName: 1-AllTenantsConfig
+    StoreProvider: Datum::File
+    StoreOptions:
+      Path: 1-AllTenantsConfig
+  - StoreName: 0-DscConfiguration
+    StoreProvider: Datum::File
+    StoreOptions:
+      Path: 0-DscConfiguration
+  - StoreName: Global
+    StoreProvider: Datum::File
+    StoreOptions:
+      Path: Global
+
+ResolutionPrecedence:
+  - BuildAgents\$($Node.Environment)\$($Node.NodeName)
+
+  - 2-EnvironmentConfig\$($Node.Environment)\AzureAd
+  - 1-AllTenantsConfig\AzureAd
+
+  - 2-EnvironmentConfig\$($Node.Environment)\Exchange
+  - 1-AllTenantsConfig\Exchange
+
+  - 2-EnvironmentConfig\$($Node.Environment)
+  - 1-AllTenantsConfig\Base
+  - 0-DscConfiguration\LcmConfiguration
+
+DatumHandlersThrowOnError: true
+DatumHandlers:
+  Datum.ProtectedData::ProtectedDatum:
+    CommandOptions:
+      PlainTextPassword: SomeSecret
+      #CertificateThumbprint: ABC
+  Datum.InvokeCommand::InvokeCommand:
+    SkipDuringLoad: true
+
+DscLocalConfigurationManagerKeyName: LcmConfig
+
+default_lookup_options: MostSpecific
+
+lookup_options:
+  Configurations:
+    merge_basetype_array: Unique
+
+  ADConditionalAccessPolicies:
+    merge_hash: deep
+  ADConditionalAccessPolicies\Items:
+    merge_hash_array: UniqueKeyValTuples
+    merge_options:
+      tuple_keys:
+        - DisplayName
+
+  cAADGroup:
+    merge_hash: deep
+  cAADGroup\Items:
+    merge_hash_array: UniqueKeyValTuples
+    merge_options:
+      tuple_keys:
+        - MailNickname
+
+  DscTagging:
+    merge_hash: deep
+  DscTagging\Layers:
+    merge_basetype_array: Unique
+
+  LcmConfig:
+    merge_hash: deep
+  LcmConfig\Settings:
+    merge_hash: deep
+  LcmConfig\ReportServerWeb: deep
+  LcmConfig\ConfigurationRepositoryWeb:
+    merge_hash: deep
+  LcmConfig\ConfigurationRepositoryWeb\Server:
+    merge_hash: deep

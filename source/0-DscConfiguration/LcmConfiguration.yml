@@ -1,0 +1,17 @@
+Configurations:
+- DscTagging
+
+DscTagging:
+  Version: 0.3.0
+  Layers:
+    - '[x={ Get-DatumSourceFile -Path $File } =]'
+
+LcmConfig:
+  Settings:
+    RefreshMode: Push
+    RefreshFrequencyMins: 30
+    RebootNodeIfNeeded: true
+    ActionAfterReboot: ContinueConfiguration
+    AllowModuleOverwrite: true
+    ConfigurationMode: ApplyAndMonitor
+    ConfigurationModeFrequencyMins: 30

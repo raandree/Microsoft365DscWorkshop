@@ -1,0 +1,10 @@
+Items:
+  - Name: Update-M365DSCDependencies
+    GetScript: |
+      @{
+        Result = (Confirm-M365DSCDependencies)
+      }
+    TestScript: |
+      [bool](-not (Confirm-M365DSCDependencies))
+    SetScript: |
+      Update-M365DSCDependencies

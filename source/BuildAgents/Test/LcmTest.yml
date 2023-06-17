@@ -1,0 +1,11 @@
+NodeName: '[x={ $Node.Name }=]'
+Environment: '[x={ $File.Directory.BaseName } =]'
+Description: '[x= "$($Node.Role) in $($Node.Environment)" =]'
+Role: AzureAdLcm
+
+PSDscAllowPlainTextPassword: True
+PSDscAllowDomainUser: True
+
+DscTagging:
+  Layers:
+    - '[x={ Get-DatumSourceFile -Path $File } =]'

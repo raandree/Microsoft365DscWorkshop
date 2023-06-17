@@ -1,0 +1,16 @@
+IsSingleInstance: Yes
+DisplayName: Authorization Policy
+Description: Used to manage authorization related settings across the company.
+AllowEmailVerifiedUsersToJoinOrganization: true
+AllowInvitesFrom: everyone
+AllowedToSignUpEmailBasedSubscriptions: true
+AllowedToUseSspr: true
+BlockMsolPowerShell: false
+DefaultUserRoleAllowedToCreateApps: true
+DefaultUserRoleAllowedToCreateSecurityGroups: true
+DefaultUserRoleAllowedToReadOtherUsers: true
+GuestUserRole: Guest
+#PermissionGrantPolicyIdsAssignedToDefaultUserRole : @()
+Ensure: Present
+TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+ManagedIdentity: true

@@ -1,0 +1,44 @@
+Items:
+  - Displayname: Application Administrator
+    #ActivateApprover                                          : @()
+    ActivationMaxDuration: PT16H
+    ActivationReqJustification: true
+    ActivationReqMFA: false
+    ActivationReqTicket: false
+    #ActiveAlertNotificationAdditionalRecipient                : @()
+    ActiveAlertNotificationDefaultRecipient: true
+    ActiveAlertNotificationOnlyCritical: false
+    #ActiveApproveNotificationAdditionalRecipient              : @()
+    ActiveApproveNotificationDefaultRecipient: true
+    ActiveApproveNotificationOnlyCritical: false
+    #ActiveAssigneeNotificationAdditionalRecipient             : @()
+    ActiveAssigneeNotificationDefaultRecipient: true
+    ActiveAssigneeNotificationOnlyCritical: false
+    ApplicationId: a86901b1-da9c-4abd-8f53-b90977ab9493
+    ApprovaltoActivate: false
+    AssignmentReqJustification: true
+    AssignmentReqMFA: false
+    ElegibilityAssignmentReqJustification: false
+    ElegibilityAssignmentReqMFA: false
+    #EligibleAlertNotificationAdditionalRecipient              : @();
+    EligibleAlertNotificationDefaultRecipient: true
+    EligibleAlertNotificationOnlyCritical: false
+    #EligibleApproveNotificationAdditionalRecipient            : @()
+    EligibleApproveNotificationDefaultRecipient: true
+    EligibleApproveNotificationOnlyCritical: false
+    #EligibleAssigneeNotificationAdditionalRecipient           : @()
+    EligibleAssigneeNotificationDefaultRecipient: True
+    EligibleAssigneeNotificationOnlyCritical: False
+    #EligibleAssignmentAlertNotificationAdditionalRecipient    : @();
+    EligibleAssignmentAlertNotificationDefaultRecipient: True
+    EligibleAssignmentAlertNotificationOnlyCritical: False
+    #EligibleAssignmentAssigneeNotificationAdditionalRecipient : @()
+    EligibleAssignmentAssigneeNotificationDefaultRecipient: True
+    EligibleAssignmentAssigneeNotificationOnlyCritical: False
+    ExpireActiveAssignment: P180D
+    ExpireEligibleAssignment: P365D
+    Id: 9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3
+    PermanentActiveAssignmentisExpirationRequired: false
+    PermanentEligibleAssignmentisExpirationRequired: false
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true

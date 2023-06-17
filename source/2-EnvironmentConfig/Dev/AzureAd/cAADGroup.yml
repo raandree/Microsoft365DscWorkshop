@@ -1,0 +1,22 @@
+Items:
+  - MailNickname: TestGroup1
+    DisplayName: Test Group 1
+    Description: Test Group 1
+    MailEnabled: true
+    SecurityEnabled: true
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true
+  - MailNickname: TestGroup2
+    DisplayName: Test Group 2
+    Description: Test Group 2
+    MailEnabled: true
+    SecurityEnabled: true
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true
+  - MailNickname: TestGroup3
+    DisplayName: Test Group 3
+    Description: Test Group 3
+    MailEnabled: true
+    SecurityEnabled: true
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true
