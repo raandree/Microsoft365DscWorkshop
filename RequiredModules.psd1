@@ -77,5 +77,5 @@
     'MicrosoftTeams'                                       = '5.5.0'
     'MSCloudLoginAssistant'                                = '1.0.119'
     'ReverseDSC'                                           = '2.0.0.18'
-
+    'PnP.PowerShell'                                       = '1.12.0'
 }
