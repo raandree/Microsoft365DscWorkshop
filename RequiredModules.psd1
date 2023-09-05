@@ -39,6 +39,7 @@
     'Az.KeyVault'                                          = 'latest'
     'Az.Resources'                                         = 'latest'
     'Az.Accounts'                                          = 'latest'
+    'Microsoft.Graph.Identity.DirectoryManagement'         = 'latest'
 
     #DSC Resources
     xPSDesiredStateConfiguration                           = '9.1.0'
