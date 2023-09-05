@@ -32,7 +32,7 @@
     #'Microsoft.PowerShell.SecretManagement'           = 'latest'
 
     # Composites
-    #'DscConfig.M365'                                  = '0.2.0'
+    'DscConfig.M365'                                       = '0.2.3'
     'DscConfig.Demo'                                       = '0.8.2'
 
     # Azure
