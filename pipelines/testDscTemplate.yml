@@ -6,7 +6,7 @@ parameters:
 stages:
   - ${{ each buildEnvironment in parameters.buildEnvironments }}:
     - stage: TestConfig${{ buildEnvironment.Name }}
-      displayName: Test DSC Configuration of environment ${{ buildEnvironment.Name }}
+      displayName: Validating DSC Configuration of environment ${{ buildEnvironment.Name }}
       pool:
         name: DSC
         demands:
@@ -16,7 +16,7 @@ stages:
 
       jobs:
         - deployment: ${{ buildEnvironment.Name }}
-          displayName: Deployment in ${{ buildEnvironment.Name }}
+          displayName: Testing deployment in ${{ buildEnvironment.Name }}
           environment: ${{ buildEnvironment.Name }}
           pool:
             name: DSC
@@ -38,7 +38,7 @@ stages:
 
                 - task: PowerShell@2
                   name: deploy
-                  displayName: 'Deploy DSC Configuration'
+                  displayName: 'Validating Deployment of DSC Configuration'
                   inputs:
                     filePath: './build.ps1'
                     arguments: '-Tasks testConfiguration'
