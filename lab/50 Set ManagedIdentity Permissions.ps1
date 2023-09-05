@@ -9,7 +9,7 @@ foreach ($environment in $environments)
     $managedIdentityName = "Lcm$($environment)"
     $environment = $datum.Global.Azure.$environment
 
-    Connect-MgGraph -ContextScope Process -ForceRefresh -TenantId $environment.AzTenantId -Scopes Group.ReadWrite.All, 'Application.ReadWrite.All', 'Directory.ReadWrite.All', AppRoleAssignment.ReadWrite.All | Out-Null
+    Connect-MgGraph -ContextScope Process -TenantId $environment.AzTenantId -Scopes Group.ReadWrite.All, 'Application.ReadWrite.All', 'Directory.ReadWrite.All', AppRoleAssignment.ReadWrite.All | Out-Null
     Connect-AzAccount -TenantId $environment.AzTenantId -SubscriptionId $environment.AzSubscriptionId | Out-Null
 
     $requiredPermissions = Get-M365DSCCompiledPermissionList2
