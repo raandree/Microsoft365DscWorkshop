@@ -19,6 +19,7 @@ BuildWorkflow:
   build:
     - Init
     - Clean
+    - FixMSCloudLoginAssistant
     - Build_Module_ModuleBuilder
     - AzureInit
     - LoadDatumConfigData
@@ -32,6 +33,7 @@ BuildWorkflow:
   rsop:
     - Init
     - Clean
+    - FixMSCloudLoginAssistant
     - LoadDatumConfigData
     - AzureInit
     - TestConfigData

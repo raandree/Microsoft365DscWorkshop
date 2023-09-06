@@ -11,16 +11,27 @@ task StartDscConfiguration {
     $programFileModulePath = 'C:\Program Files\WindowsPowerShell\Modules'
     $modulesToKeep = 'Microsoft.PowerShell.Operation.Validation', 'PackageManagement', 'Pester', 'PowerShellGet', 'PSReadline'
 
-    dir -Path $programFileModulePath | Where-Object { $_.BaseName -notin $modulesToKeep } | Remove-Item -Recurse -Force
+    Get-ChildItem -Path $programFileModulePath | Where-Object { $_.BaseName -notin $modulesToKeep } | Remove-Item -Recurse -Force
 
-    dir -Path $requiredModulesPath | Copy-Item -Destination $programFileModulePath -Recurse -Force
+    Get-ChildItem -Path $requiredModulesPath | Copy-Item -Destination $programFileModulePath -Recurse -Force
 
     Start-DscConfiguration -Path "$MofOutputDirectory\$environment" -Wait -Verbose -Force
 
 }
 
 task TestDscConfiguration {
-    $result = Test-DscConfiguration -Detailed
+    if ((Get-DscLocalConfigurationManager).LCMState -eq 'Busy')
+    {
+        Write-Host 'LCM is busy, waiting until LCM has finished the job...' -NoNewline
+        while ((Get-DscLocalConfigurationManager).LCMState -eq 'Busy')
+        {
+            Start-Sleep -Seconds 1
+            Write-Host . -NoNewline
+        }
+        Write-Host 'done'
+    }
+    
+    $result = Test-DscConfiguration -Detailed -ErrorAction Stop
 
     if ($result.ResourcesNotInDesiredState)
     {
