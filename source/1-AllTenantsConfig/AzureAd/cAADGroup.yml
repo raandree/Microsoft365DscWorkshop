@@ -7,3 +7,11 @@ Items:
     TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
     ManagedIdentity: true
     Ensure: Present
+  - MailNickname: TestGroup998
+    DisplayName: Test Group 998
+    Description: Test Group 998
+    MailEnabled: false
+    SecurityEnabled: true
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true
+    Ensure: Present
