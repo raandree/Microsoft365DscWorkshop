@@ -1,7 +1,7 @@
 Items:
-  - MailNickname: TestGroup100
-    DisplayName: Test Group 100
-    Description: Test Group 100
+  - MailNickname: TestGroup999
+    DisplayName: Test Group 999
+    Description: Test Group 999
     MailEnabled: false
     SecurityEnabled: true
     TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
