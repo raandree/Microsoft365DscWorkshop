@@ -1,18 +1,5 @@
 task FixMSCloudLoginAssistant {
 
-    $missingLine = '$accessToken = $accessToken | ConvertTo-SecureString -AsPlainText -Force'
-    $p = Resolve-Path -Path "$RequiredModulesDirectory\MSCloudLoginAssistant\*\Workloads\MicrosoftGraph.psm1"
-    $c = Get-Content -Path $p
-
-    if ($c -notlike "*$missingLine*")
-    {
-        $c[84] = $missingLine
-        $c | Set-Content -Path $p
-    }
-
-    
-    #--------------------------------------------------------------------
-
     $oldLine = '                -Organization $Global:MSCloudLoginConnectionProfile.OrganizationName `'
     $newLine = '                -Organization $Global:MSCloudLoginConnectionProfile.ExchangeOnline.TenantId `'
 
