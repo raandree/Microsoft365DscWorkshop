@@ -57,6 +57,14 @@ lookup_options:
     merge_options:
       tuple_keys:
         - DisplayName
+  
+  cEXOAcceptedDomain:
+    merge_hash: deep
+  cEXOAcceptedDomain\Items:
+    merge_hash_array: UniqueKeyValTuples
+    merge_options:
+      tuple_keys:
+        - Identity
 
   cAADGroup:
     merge_hash: deep

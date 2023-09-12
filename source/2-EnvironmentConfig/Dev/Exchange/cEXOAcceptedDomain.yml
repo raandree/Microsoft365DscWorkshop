@@ -1,0 +1,11 @@
+Items:
+  - Identity: test1.com
+    DomainType: Authoritative
+    Ensure: Present
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true
+  - Identity: test2.com
+    DomainType: Authoritative
+    Ensure: Present
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true
