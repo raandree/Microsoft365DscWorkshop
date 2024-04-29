@@ -1,18 +1,43 @@
-$here = $PSScriptRoot
-$requiredModulesPath = (Resolve-Path -Path $here\..\output\RequiredModules).Path
+$requiredModulesPath = (Resolve-Path -Path $PSScriptRoot\..\output\RequiredModules).Path
 if ($env:PSModulePath -notlike "*$requiredModulesPath*") {
     $env:PSModulePath = $env:PSModulePath + ";$requiredModulesPath"
 }
 
-Import-Module -Name $here\AzHelpers.psm1 -Force
-$datum = New-DatumStructure -DefinitionFile $here\..\source\Datum.yml
+Import-Module -Name $PSScriptRoot\AzHelpers.psm1 -Force
+$datum = New-DatumStructure -DefinitionFile $PSScriptRoot\..\source\Datum.yml
+
+if ($datum.Global.AzureDevOps.OrganizationName -eq '<OrganizationName>' -or $null -eq $datum.Global.AzureDevOps.OrganizationName)
+{
+    $datum.Global.AzureDevOps.OrganizationName = Read-Host -Prompt 'Enter the name of your Azure DevOps organization'
+    $datum.Global.AzureDevOps | ConvertTo-Yaml | Out-File $PSScriptRoot\..\source\Global\AzureDevOps.yml
+}
+
+if ($datum.Global.AzureDevOps.PersonalAccessToken -eq '<PersonalAccessToken>' -or $null -eq $datum.Global.AzureDevOps.PersonalAccessToken)
+{
+    $pat = Read-Host -Prompt 'Enter your Azure DevOps Personal Access Token'
+    $pass = $datum.__Definition.DatumHandlers.'Datum.ProtectedData::ProtectedDatum'.CommandOptions.PlainTextPassword | ConvertTo-SecureString -AsPlainText -Force
+    $datum.Global.AzureDevOps.PersonalAccessToken = $pat | Protect-Datum -Password $pass -MaxLineLength 9999
+
+    $datum.Global.AzureDevOps | ConvertTo-Yaml | Out-File $PSScriptRoot\..\source\Global\AzureDevOps.yml
+}
+
+if ((git status -s) -like '*source/Global/AzureDevOps.yml')
+{
+    git add $PSScriptRoot\..\source\Global\AzureDevOps.yml
+    git commit -m 'Updated Azure DevOps Organization Data' | Out-Null
+    git push | Out-Null
+}
 
 Set-VSTeamAccount -Account "https://dev.azure.com/$($datum.Global.AzureDevOps.OrganizationName)/" -PersonalAccessToken $datum.Global.AzureDevOps.PersonalAccessToken
 Write-Host "Connected to Azure DevOps organization '$($datum.Global.AzureDevOps.OrganizationName)' with PAT."
 
-if (-not (Get-VSTeamPool))
+try
 {
-    Write-Error "No data returned from Azure DevOps organization '$($datum.Global.AzureDevOps.OrganizationName)'. The authentication might have failed, please check the PAT."
+    Get-VSTeamPool | Out-Null
+}
+catch
+{
+    Write-Error "No data returned from Azure DevOps organization '$($datum.Global.AzureDevOps.OrganizationName)'. The authentication might have failed, please check the Organization Name and the PAT."
     return
 }
 
@@ -55,8 +80,8 @@ $project = Get-VSTeamProject -Name $datum.Global.AzureDevOps.ProjectName
 
 $featuresToDisable = 'ms.feed.feed', #Artifacts
 'ms.vss-work.agile', #Boards
-'ms.vss-code.version-control', #Repos
 'ms.vss-test-web.test' #Test Plans
+#'ms.vss-code.version-control' #Repos
 
 foreach ($featureToDisable in $featuresToDisable)
 {
@@ -84,7 +109,7 @@ foreach ($environmentName in $environments)
             name = $environmentName
         } | ConvertTo-Json
     
-        Invoke-VSTeamRequest -Method Post -ContentType 'application/json' -Body $requestBodyEnvironment -ProjectName Microsoft365DscWorkshop -Area distributedtask -Resource environments -Version '7.1-preview.1' | Out-Null
+        Invoke-VSTeamRequest -Method Post -ContentType 'application/json' -Body $requestBodyEnvironment -ProjectName $datum.Global.AzureDevOps.ProjectName -Area distributedtask -Resource environments -Version '7.1-preview.1' | Out-Null
     }
     else
     {
