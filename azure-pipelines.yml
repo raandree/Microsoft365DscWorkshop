@@ -1,0 +1,76 @@
+trigger:
+  branches:
+    include:
+    - '*'
+  paths:
+    exclude:
+    - CHANGELOG.md
+  tags:
+    include:
+    - "v*"
+    exclude:
+    - "*-*"
+
+variables:
+  buildFolderName: output
+  testResultFolderName: testResults
+  defaultBranch: main
+  Agent.Source.Git.ShallowFetchDepth: 0
+
+stages:
+  - stage: Build
+    jobs:
+      - job: CompileDscOnPowerShellCore
+        displayName: Compile DSC Configuration on PowerShell Core
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+
+          - pwsh: |
+              dir -Path env: | Out-String | Write-Host
+            displayName: 'Display Environment Variables'
+
+          - pwsh: |
+              dotnet tool install --global GitVersion.Tool
+              $gitVersionObject = dotnet-gitversion | ConvertFrom-Json
+              $gitVersionObject.PSObject.Properties.ForEach{
+                  Write-Host -Object "Setting Task Variable '$($_.Name)' with value '$($_.Value)'."
+                  Write-Host -Object "##vso[task.setvariable variable=$($_.Name);]$($_.Value)"
+              }
+              Write-Host -Object "##vso[build.updatebuildnumber]$($gitVersionObject.FullSemVer)"
+            displayName: Calculate ModuleVersion (GitVersion)
+
+          - task: PowerShell@2
+            name: build
+            displayName: 'Build DSC Artifacts'
+            inputs:
+              filePath: './build.ps1'
+              arguments: '-ResolveDependency -Tasks build'
+              pwsh: true
+            env:
+              ModuleVersion: $(NuGetVersionV2)
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish MOF Files'
+            inputs:
+              targetPath: '$(buildFolderName)/MOF'
+              artifact: 'MOF'
+              publishLocation: 'pipeline'
+              parallel: true
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Meta MOF Files'
+            inputs:
+              targetPath: '$(buildFolderName)/MetaMOF'
+              artifact: 'MetaMOF'
+              publishLocation: 'pipeline'
+              parallel: true
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish RSOP Files'
+            inputs:
+              targetPath: '$(buildFolderName)/RSOP'
+              artifact: 'RSOP'
+              publishLocation: 'pipeline'
+              parallel: true
+

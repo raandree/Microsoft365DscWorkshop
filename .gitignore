@@ -7,18 +7,14 @@ output/RequiredModules/*
 
 !output/RequiredModules/ProtectedData
 output/RequiredModules/ProtectedData/*
-!output/RequiredModules/ProtectedData/5.0.0
-
-!output/RequiredModules/DscConfig.M365
-output/RequiredModules/DscConfig.M365/*
-!output/RequiredModules/DscConfig.M365/1.0.0
+!output/RequiredModules/ProtectedData/9.9.9
 
 !output/RequiredModules/DscBuildHelpers
 output/RequiredModules/DscBuildHelpers/*
-!output/RequiredModules/DscBuildHelpers/0.3.0
+!output/RequiredModules/DscBuildHelpers/9.9.9
 
 !output/RequiredModules/Sampler.DscPipeline
 output/RequiredModules/Sampler.DscPipeline/*
-!output/RequiredModules/Sampler.DscPipeline/0.8.0
+!output/RequiredModules/Sampler.DscPipeline/9.9.9
 
 lab/testResults.xml

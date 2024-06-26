@@ -2,7 +2,8 @@ OrganizationName: <OrganizationName>
 PersonalAccessToken: <PersonalAccessToken>
 ProjectName: Microsoft365DscWorkshop
 AgentPoolName: DSC
-AgentAzureLocation: UK South
 BuildAgents:
   UserName: worker
-  Password: <PersonalAccessToken>
+  Password: <Password>
+  AzureLocation: West Europe
+  AzureRoleSize: Standard_D4ds_v5

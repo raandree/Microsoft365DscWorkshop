@@ -1,0 +1,13 @@
+Items:
+  - DisplayName: Test-Unit
+    Description: Test Description
+    MembershipRule: (user.country -eq `"Canada`")
+    MembershipRuleProcessingState: On
+    MembershipType: Dynamic
+    ScopedRoleMembers:
+      - RoleName: User Administrator
+        RoleMemberInfo:
+          Identity: '[x={ "admin@" + $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+          Type: User
+    TenantId: '[x={ $azBuildParameters."$($Node.Environment)".AzTenantName }=]'
+    ManagedIdentity: true

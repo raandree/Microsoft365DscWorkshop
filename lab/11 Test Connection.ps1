@@ -1,6 +1,6 @@
 param (
     [Parameter()]
-    [string]$EnvironmentName,
+    [string[]]$EnvironmentName,
 
     [Parameter()]
     [switch]$DoNotDisconnect
@@ -18,35 +18,33 @@ $environments = $datum.Global.Azure.Environments.Keys
 
 if ($EnvironmentName)
 {
-    $environments = $environments | Where-Object { $_ -eq $EnvironmentName }
+    Write-Host "Filtering environments to: $($EnvironmentName -join ', ')" -ForegroundColor Magenta
+    $environments = $environments | Where-Object { $EnvironmentName -contains $_ }
 }
+Write-Host "Setting up environments: $($environments -join ', ')" -ForegroundColor Magenta
 
-foreach ($environmentName in $environments)
+foreach ($envName in $environments)
 {
-    $environment = $datum.Global.Azure.Environments.$environmentName
-    Write-Host "Testing connection to environment '$environmentName'" -ForegroundColor Magenta
-    
-    $param = @{
-        TenantId               = $environment.AzTenantId
-        SubscriptionId         = $environment.AzSubscriptionId
-        ServicePrincipalId     = $environment.AzApplicationId
-        ServicePrincipalSecret = $environment.AzApplicationSecret | ConvertTo-SecureString -AsPlainText -Force
-    }
-    Connect-Azure @param -ErrorAction Stop
+    $environment = $datum.Global.Azure.Environments."$envName"
+    $setupIdentity = $environment.Identities | Where-Object Name -EQ M365DscSetupApplication
+    Write-Host "Testing connection to environment '$envName'" -ForegroundColor Magenta
 
     $param = @{
         TenantId               = $environment.AzTenantId
         TenantName             = $environment.AzTenantName
-        ServicePrincipalId     = $environment.AzApplicationId
-        ServicePrincipalSecret = $environment.AzApplicationSecret
+        SubscriptionId         = $environment.AzSubscriptionId
+        ServicePrincipalId     = $setupIdentity.ApplicationId
+        ServicePrincipalSecret = $setupIdentity.ApplicationSecret | ConvertTo-SecureString -AsPlainText -Force
     }
 
-    Connect-EXO @param -ErrorAction Stop
+    Connect-M365Dsc @param -ErrorAction Stop
+
+    Test-M365DscConnection -TenantId $environment.AzTenantId -SubscriptionId $environment.AzSubscriptionId -ErrorAction Stop | Out-Null
+
     if (-not $DoNotDisconnect)
     {
-        Disconnect-MgGraph | Out-Null
-        Disconnect-ExchangeOnline -Confirm:$false
+        Disconnect-M365Dsc
     }
 }
 
-Write-Host "Connection test completed" -ForegroundColor Green
+Write-Host 'Connection test completed' -ForegroundColor Green
