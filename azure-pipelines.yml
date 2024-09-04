@@ -31,7 +31,7 @@ stages:
             displayName: 'Display Environment Variables'
 
           - pwsh: |
-              dotnet tool install --global GitVersion.Tool
+              dotnet tool install --global GitVersion.Tool --version 5.*
               $gitVersionObject = dotnet-gitversion | ConvertFrom-Json
               $gitVersionObject.PSObject.Properties.ForEach{
                   Write-Host -Object "Setting Task Variable '$($_.Name)' with value '$($_.Value)'."
@@ -45,7 +45,7 @@ stages:
             displayName: 'Build DSC Artifacts'
             inputs:
               filePath: './build.ps1'
-              arguments: '-ResolveDependency -Tasks build'
+              arguments: '-ResolveDependency -Tasks build -UseModuleFast'
               pwsh: true
             env:
               ModuleVersion: $(NuGetVersionV2)
@@ -73,4 +73,3 @@ stages:
               artifact: 'RSOP'
               publishLocation: 'pipeline'
               parallel: true
-

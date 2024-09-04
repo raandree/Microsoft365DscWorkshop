@@ -1,3 +1,5 @@
+trigger: none
+
 pool:
   vmImage: windows-latest
 
@@ -21,7 +23,13 @@ parameters:
     default: DSC
 
 stages:
-  - template: startDscTemplate.yml
+
+  - template: initTemplate.yml
+    parameters:
+      buildEnvironments: ${{ parameters.buildEnvironments }}
+      poolName: ${{ parameters.poolName }}
+
+  - template: startExistingDscTemplate.yml
     parameters:
       buildEnvironments: ${{ parameters.buildEnvironments }}
       poolName: ${{ parameters.poolName }}

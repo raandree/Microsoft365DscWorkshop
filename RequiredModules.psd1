@@ -39,12 +39,6 @@
     'DscConfig.M365'                                       = '0.3.2'
     'DscConfig.Demo'                                       = '0.8.2'
 
-    # Azure
-    'Az.KeyVault'                                          = '6.0.0'
-    'Az.Resources'                                         = '7.1.0'
-    'Az.Accounts'                                          = '3.0.0'
-    'Microsoft.Graph.Identity.DirectoryManagement'         = '2.19.0'
-
     #DSC Resources
     xPSDesiredStateConfiguration                           = '9.1.0'
     ComputerManagementDsc                                  = '8.5.0'
@@ -56,7 +50,16 @@
     xDscDiagnostics                                        = '2.8.0'
     PSDesiredStateConfiguration                            = '2.0.7'
 
-    Microsoft365DSC                                        = '1.24.717.1'
+    # Azure
+    'Az.KeyVault'                                          = '6.0.1'
+    'Az.Resources'                                         = '7.3.0'
+    'Az.Accounts'                                          = '3.0.3'
+    'Az.ManagedServiceIdentity'                            = '1.2.1'
+    'Microsoft.Graph.Identity.Governance'                  = '2.20.0'
+    'Microsoft.Graph.Identity.DirectoryManagement'         = '2.20.0'
+
+    # Microsoft365DSC
+    Microsoft365DSC                                        = '1.24.828.1'
 
     <#
         To update Microsoft365DSC and its dependencies, do the following steps:
@@ -74,7 +77,7 @@
         (Import-PowerShellDataFile -Path '.\output\RequiredModules\Microsoft365DSC\*\Dependencies\Manifest.psd1').Dependencies | ForEach-Object { "'{0}' = '{1}'" -f $_.ModuleName, $_.RequiredVersion } | Set-Clipboard
     #>
 
-    'DSCParser'                                            = '2.0.0.7'
+    'DSCParser'                                            = '2.0.0.8'
     'ExchangeOnlineManagement'                             = '3.4.0'
     'Microsoft.Graph.Applications'                         = '2.20.0'
     'Microsoft.Graph.Authentication'                       = '2.20.0'
@@ -95,8 +98,8 @@
     'Microsoft.Graph.Users'                                = '2.20.0'
     'Microsoft.Graph.Users.Actions'                        = '2.20.0'
     'Microsoft.PowerApps.Administration.PowerShell'        = '2.0.191'
-    'MicrosoftTeams'                                       = '6.4.0'
-    'MSCloudLoginAssistant'                                = '1.1.18'
+    'MicrosoftTeams'                                       = '6.5.0'
+    'MSCloudLoginAssistant'                                = '1.1.19'
     'PnP.PowerShell'                                       = '1.12.0'
     'ReverseDSC'                                           = '2.0.0.20'
 

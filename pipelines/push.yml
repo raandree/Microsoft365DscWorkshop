@@ -1,9 +1,18 @@
 trigger:
-  - "*"
+  branches:
+    include:
+    - main
+  paths:
+    exclude:
+    - CHANGELOG.md
+  tags:
+    include:
+    - "v*"
+    exclude:
+    - "*-*"
 
 pool:
   vmImage: windows-latest
-
 
 variables:
   buildFolderName: output
