@@ -34,6 +34,10 @@ task ExportTenantData {
             Path                  = "$OutputDirectory\Export\$($env.Value.AzTenantName)"
         }
 
+        Write-Host '------------------ Export Parameters ------------------' -ForegroundColor Yellow
+        $exportParams | Out-String | Write-Host -ForegroundColor DarkGray
+        Write-Host '-------------------------------------------------------' -ForegroundColor Yellow
+
         Export-M365DSCConfiguration @exportParams
 
     }
