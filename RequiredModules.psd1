@@ -36,15 +36,15 @@
     'DscResource.Test'                                     = 'latest'
 
     # Composites
-    'DscConfig.M365'                                       = '0.3.2'
-    'DscConfig.Demo'                                       = '0.8.2'
+    'DscConfig.M365'                                       = 'latest'
+    'DscConfig.Demo'                                       = 'latest'
 
     #DSC Resources
-    xPSDesiredStateConfiguration                           = '9.1.0'
-    ComputerManagementDsc                                  = '8.5.0'
-    NetworkingDsc                                          = '8.2.0'
+    xPSDesiredStateConfiguration                           = '9.2.0'
+    ComputerManagementDsc                                  = '9.2.0'
+    NetworkingDsc                                          = '9.0.0'
     JeaDsc                                                 = '0.7.2'
-    xWebAdministration                                     = '3.2.0'
+    WebAdministrationDsc                                   = '4.2.0'
     FileSystemDsc                                          = '1.1.1'
     SecurityPolicyDsc                                      = '2.10.0.0'
     xDscDiagnostics                                        = '2.8.0'
