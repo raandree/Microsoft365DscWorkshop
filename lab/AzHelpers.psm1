@@ -300,7 +300,7 @@ function Get-GraphPermission
 function Connect-Azure
 {
     [CmdletBinding()]
-    param(
+    param (
         [Parameter(Mandatory = $true)]
         [string]$TenantId,
 
@@ -352,7 +352,7 @@ function Connect-Azure
 function Connect-EXO
 {
     [CmdletBinding()]
-    param(
+    param (
         [Parameter(Mandatory = $true)]
         [string]$TenantId,
 
@@ -601,7 +601,7 @@ function Test-M365DscConnection
         [Parameter(Mandatory = $true)]
         [string]$TenantId,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter()]
         [string]$SubscriptionId
     )
 
@@ -644,7 +644,11 @@ function Test-M365DscConnection
         Write-Host "Azure context tenant ID '$($azContext.Tenant.Id)' matches the provided tenant ID."
     }
 
-    if ($azContext.Subscription.Id -ne $SubscriptionId)
+    if ([string]::IsNullOrEmpty($SubscriptionId))
+    {
+        Write-Host 'Azure context subscription ID is not set.'
+    }
+    elseif ($azContext.Subscription.Id -ne $SubscriptionId)
     {
         Write-Error "Azure context subscription ID '$($azContext.Subscription.Id)' does not match the provided subscription ID '$SubscriptionId'."
         $isConnected = $false
@@ -680,20 +684,26 @@ function Test-M365DscConnection
 function Connect-M365DscAzure
 {
     [CmdletBinding(DefaultParameterSetName = 'Interactive')]
-    param(
+    param (
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Interactive')]
         [string]$TenantId,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Interactive')]
+        [Parameter(ParameterSetName = 'AppSecret')]
+        [Parameter(ParameterSetName = 'Certificate')]
+        [Parameter(ParameterSetName = 'Interactive')]
         [string]$SubscriptionId,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
         [string]$ServicePrincipalId,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
         [securestring]$ServicePrincipalSecret,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
+        [string]$CertificateThumbprint,
 
         [Parameter()]
         [string[]]$Scopes = ('RoleManagement.ReadWrite.Directory',
@@ -714,11 +724,47 @@ function Connect-M365DscAzure
     {
         if ($PSCmdlet.ParameterSetName -eq 'AppSecret')
         {
-            $subscription = Connect-AzAccount -ServicePrincipal -Credential $cred -Tenant $TenantId -ErrorAction Stop -WarningAction Ignore *>&1 #| Write-Verbose
+            $param = @{
+                ServicePrincipal = $true
+                Credential       = $cred
+                Tenant           = $TenantId
+                ErrorAction      = 'Stop'
+                WarningAction    = 'Ignore'
+            }
+            $subscription = Connect-AzAccount @param *>&1
+        }
+        elseif ($PSCmdlet.ParameterSetName -eq 'Certificate')
+        {
+            $param = @{
+                Tenant                = $TenantId
+                ApplicationId         = $ServicePrincipalId
+                CertificateThumbprint = $CertificateThumbprint
+                ErrorAction           = 'Stop'
+                WarningAction         = 'Ignore'
+            }
+            $subscription = Connect-AzAccount @param *>&1
         }
         else
         {
-            $subscription = Connect-AzAccount -Tenant $TenantId -SubscriptionId $SubscriptionId -ErrorAction Stop -WarningAction Ignore *>&1 #| Write-Verbose
+            $param = @{
+                Tenant        = $TenantId
+                ErrorAction   = 'Stop'
+                WarningAction = 'Ignore'
+            }
+            if ($SubscriptionId)
+            {
+                $param.SubscriptionId = $SubscriptionId
+            }
+
+            $subscription = if ($SubscriptionId)
+            {
+                Connect-AzAccount @param *>&1
+            }
+            else
+            {
+                Connect-AzAccount @param
+            }
+
         }
         Write-Host "Successfully connected to Azure subscription '$($subscription.Context.Subscription.Name)' ($($subscription.Context.Subscription.Id))' with account '$($subscription.Context.Account.Id)'"
     }
@@ -762,20 +808,26 @@ function Connect-M365DscAzure
 function Connect-M365DscExchangeOnline
 {
     [CmdletBinding(DefaultParameterSetName = 'Interactive')]
-    param(
+    param (
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Interactive')]
         [string]$TenantId,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Interactive')]
         [string]$TenantName,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
         [string]$ServicePrincipalId,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
-        [securestring]$ServicePrincipalSecret
+        [securestring]$ServicePrincipalSecret,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
+        [string]$CertificateThumbprint
     )
 
     try
@@ -792,6 +844,10 @@ function Connect-M365DscExchangeOnline
             $tokenResponse = Invoke-RestMethod -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" -Method POST -Body $tokenBody
 
             Connect-ExchangeOnline -AccessToken $tokenResponse.access_token -Organization $TenantName -ShowBanner:$false
+        }
+        elseif ($PSCmdlet.ParameterSetName -eq 'Certificate')
+        {
+            Connect-ExchangeOnline -CertificateThumbprint $CertificateThumbprint -AppId $ServicePrincipalId -Organization $TenantName -ShowBanner:$false
         }
         else
         {
@@ -821,22 +877,29 @@ function Connect-M365Dsc
     [CmdletBinding(DefaultParameterSetName = 'Interactive')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Interactive')]
         [string]$TenantId,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Interactive')]
         [string]$TenantName,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Interactive')]
+        [Parameter(ParameterSetName = 'AppSecret')]
+        [Parameter(ParameterSetName = 'Certificate')]
+        [Parameter(ParameterSetName = 'Interactive')]
         [string]$SubscriptionId,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
         [string]$ServicePrincipalId,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'AppSecret')]
-        [securestring]$ServicePrincipalSecret
+        [securestring]$ServicePrincipalSecret,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
+        [string]$CertificateThumbprint
     )
 
     Disconnect-M365Dsc -ErrorAction SilentlyContinue
@@ -873,20 +936,29 @@ function Add-M365DscIdentityPermission
         [string]$AccessType = 'Update'
     )
 
-    Write-Host 'Adding Azure permissions' -ForegroundColor Magenta
-    if ($AccessType -eq 'Update')
+    $azureContext = Get-AzContext
+
+    if (-not $azureContext.SubscriptionId)
     {
-        if (-not (Get-AzRoleAssignment -ObjectId $Identity.AppPrincipalId -RoleDefinitionName Owner))
-        {
-            New-AzRoleAssignment -PrincipalId $Identity.AppPrincipalId -RoleDefinitionName Owner | Out-Null
-            Write-Host "Assigning the application '$($Identity.DisplayName)' to the role 'Owner'."
-        }
-        else
-        {
-            Write-Host "The application '$($Identity.DisplayName)' is already assigned to the role 'Owner'."
-        }
+        Write-Host 'No Azure subscription available. Skipping Azure permissions.' -ForegroundColor Yellow
     }
-    Write-Host 'Done adding Azure permissions' -ForegroundColor Magenta
+    else
+    {
+        Write-Host 'Adding Azure permissions' -ForegroundColor Magenta
+        if ($AccessType -eq 'Update')
+        {
+            if (-not (Get-AzRoleAssignment -ObjectId $Identity.AppPrincipalId -RoleDefinitionName Owner))
+            {
+                New-AzRoleAssignment -PrincipalId $Identity.AppPrincipalId -RoleDefinitionName Owner | Out-Null
+                Write-Host "Assigning the application '$($Identity.DisplayName)' to the role 'Owner'."
+            }
+            else
+            {
+                Write-Host "The application '$($Identity.DisplayName)' is already assigned to the role 'Owner'."
+            }
+        }
+        Write-Host 'Done adding Azure permissions' -ForegroundColor Magenta
+    }
 
     #------------------------------------------------------------------------------
 
