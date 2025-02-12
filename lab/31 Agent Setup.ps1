@@ -17,7 +17,7 @@ if ($EnvironmentName)
 
 Import-Module -Name $PSScriptRoot\AzHelpers.psm1 -Force
 $datum = New-DatumStructure -DefinitionFile $PSScriptRoot\..\source\Datum.yml
-$labs = Get-Lab -List | Where-Object { $_ -Like "$($datum.Global.ProjectSettings.Name)*" }
+$labs = Get-Lab -List | Where-Object { $_ -Like "$($datum.Global.ProjectSettings.ProjectName)*" }
 
 if (-not (Test-LabAzureModuleAvailability -ErrorAction SilentlyContinue))
 {
@@ -28,12 +28,12 @@ if (-not (Test-LabAzureModuleAvailability -ErrorAction SilentlyContinue))
 $vsCodeDownloadUrl = 'https://go.microsoft.com/fwlink/?Linkid=852157'
 $gitDownloadUrl = 'https://github.com/git-for-windows/git/releases/download/v2.39.2.windows.1/Git-2.39.2-64-bit.exe'
 $vscodePowerShellExtensionDownloadUrl = 'https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-vscode/vsextensions/PowerShell/2023.1.0/vspackage'
-$notepadPlusPlusDownloadUrl = 'https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.4.9/npp.8.4.9.Installer.x64.exe'
-$vstsAgentUrl = 'https://vstsagentpackage.azureedge.net/agent/3.232.3/vsts-agent-win-x64-3.232.3.zip'
+$notepadPlusPlusDownloadUrl = 'https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.7.6/npp.8.7.6.Installer.x64.exe'
+$vstsAgentUrl = 'https://vstsagentpackage.azureedge.net/agent/4.251.0/vsts-agent-win-x64-4.251.0.zip'
 
 foreach ($lab in $labs)
 {
-    $lab -match "(?:$($datum.Global.ProjectSettings.Name))(?<Environment>\w+)" | Out-Null
+    $lab -match "(?:$($datum.Global.ProjectSettings.ProjectName))(?<Environment>\w+)" | Out-Null
     $envName = $Matches.Environment
     if ($EnvironmentName -and $envName -notin $EnvironmentName)
     {
@@ -88,8 +88,8 @@ foreach ($lab in $labs)
         if (-not (Get-Service -Name vstsagent*))
         {
             Expand-Archive -Path $vstsAgenZip.FullName -DestinationPath C:\Agent -Force
-            "C:\Agent\config.cmd --unattended --url https://dev.azure.com/$($datum.Global.AzureDevOps.OrganizationName) --auth pat --token $($datum.Global.AzureDevOps.PersonalAccessToken) --pool $($datum.Global.AzureDevOps.AgentPoolName) --agent $env:COMPUTERNAME --runAsService --windowsLogonAccount 'NT AUTHORITY\SYSTEM' --acceptTeeEula" | Out-File C:\DeployDebug\AzDoAgentSetup.cmd -Force
-            C:\Agent\config.cmd --unattended --url https://dev.azure.com/$($datum.Global.AzureDevOps.OrganizationName) --auth pat --token $($datum.Global.AzureDevOps.PersonalAccessToken) --pool $($datum.Global.AzureDevOps.AgentPoolName) --agent $env:COMPUTERNAME --runAsService --windowsLogonAccount 'NT AUTHORITY\SYSTEM' --acceptTeeEula
+            "C:\Agent\config.cmd --unattended --url https://dev.azure.com/$($datum.Global.ProjectSettings.OrganizationName) --auth pat --token $($datum.Global.ProjectSettings.PersonalAccessToken) --pool $($datum.Global.ProjectSettings.AgentPoolName) --agent $env:COMPUTERNAME --runAsService --windowsLogonAccount 'NT AUTHORITY\SYSTEM' --acceptTeeEula" | Out-File C:\DeployDebug\AzDoAgentSetup.cmd -Force
+            C:\Agent\config.cmd --unattended --url https://dev.azure.com/$($datum.Global.ProjectSettings.OrganizationName) --auth pat --token $($datum.Global.ProjectSettings.PersonalAccessToken) --pool $($datum.Global.ProjectSettings.AgentPoolName) --agent $env:COMPUTERNAME --runAsService --windowsLogonAccount 'NT AUTHORITY\SYSTEM' --acceptTeeEula
         }
 
     } -ComputerName $vms -Variable (Get-Variable -Name vstsAgenZip, datum)
@@ -109,51 +109,36 @@ foreach ($lab in $labs)
 
     } -ComputerName $vms -ArgumentList $lab.Notes.Environment
 
-    # Generate client authentication certificate and upload it to the Azure application
-    Remove-LabPSSession -All
-    $s = New-LabPSSession -ComputerName $vms
-    Add-FunctionToPSSession -Session $s -FunctionInfo (Get-Command -Name New-M365DSCSelfSignedCertificate)
+    # ---------------------------------------------------------------------------
+    #   Upload M365DscLcmApplication certificate for authentication with Azure
+    # ---------------------------------------------------------------------------
 
-    $certificate = Invoke-LabCommand -ComputerName $vms -ActivityName 'Generate client authentication certificate' -ScriptBlock {
+    $certificatesToInstall = 'M365DscLcmApplication', 'M365DscExportApplication'
+    $pfxPassword = 'Somepass1'
 
-        New-M365DSCSelfSignedCertificate -Subject M365DscLcmCertApplication -Store LocalMachine -PassThru
-
-    } -PassThru
-
-    if ($certificate.Count -gt 1)
+    foreach ($certificateToInstall in $certificatesToInstall)
     {
-        Write-Error 'More than one certificate was generated. This is not expected. Please investigate.'
-        return
+        $certificateThumbprint = ($environment.Identities | Where-Object Name -EQ $certificateToInstall).CertificateThumbprint
+        $certificate = Get-Item -Path Cert:\LocalMachine\My\$certificateThumbprint
+        $certificateBytes = $certificate.Export('Pfx', $pfxPassword)
+
+        Write-Host "Installing certificate '$certificateToInstall' on $($vms.Count) machines ($($vms.Name -join ', '))."
+        $s = New-LabPSSession -ComputerName $vms
+        $m = Get-Module -Name AutomatedLab.Common -ListAvailable
+        Add-VariableToPSSession -Session $s -PSVariable (Get-Variable -Name certificateBytes)
+        Add-VariableToPSSession -Session $s -PSVariable (Get-Variable -Name pfxPassword)
+
+        Invoke-LabCommand -ActivityName "Install certificate '$certificateToInstall'" -ScriptBlock {
+            [System.IO.File]::WriteAllBytes('C:\Cert.pfx', $certificateBytes)
+            Import-PfxCertificate -FilePath C:\Cert.pfx -Password ($pfxPassword | ConvertTo-SecureString -AsPlainText -Force) -CertStoreLocation Cert:\LocalMachine\My
+            Remove-Item -Path C:\Cert.pfx -Force
+        } -ComputerName $vms -ArgumentList (, $certificateBytes) -PassThru
+
+        Write-Host "Restarting $($vms.Count) machines, ($($vms.Name -join ', '))."
+        Restart-LabVM -ComputerName $vms -Wait
     }
 
-    $bytes = $certificate.Export('Cert')
-    $params = @{
-        keyCredentials = @(
-            @{
-                type        = 'AsymmetricX509Cert'
-                usage       = 'Verify'
-                key         = $bytes
-                displayName = 'GeneratedByM365DscWorkshop'
-            }
-        )
-    }
-
-    $id = Get-M365DscIdentity -Name M365DscLcmCertApplication
-    if (-not $id)
-    {
-        Write-Error "The application 'M365DscLcmCertApplication' does not exist. Please create it manually in the Azure portal and try again."
-    }
-    Write-Host "Updating application '$($id.DisplayName)' with new certificate (Thumbprint: $($certificate.Thumbprint))."
-    Update-MgApplication -ApplicationId $id.Id -BodyParameter $params
-
-    $identity = $environment.Identities | Where-Object Name -EQ 'M365DscLcmCertApplication'
-    if ($identity.CertificateThumbprint -eq '<AutoGeneratedLater>')
-    {
-        $identity.CertificateThumbprint = $certificate.Thumbprint
-    }
-
-    Write-Host "Restarting $($vms.Count) machines."
-    Restart-LabVM -ComputerName $vms -Wait
+    # ------------------------------------------------------------------------------------------------------------
 
     Write-Host "Finished installing AzDo Build Agent on $($vms.Count) machines in environment '$envName'"
 

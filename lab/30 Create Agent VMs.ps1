@@ -14,17 +14,40 @@ Import-Module -Name $PSScriptRoot\AzHelpers.psm1 -Force
 $datum = New-DatumStructure -DefinitionFile $PSScriptRoot\..\source\Datum.yml
 $environments = $datum.Global.Azure.Environments.Keys
 
+if ($datum.Global.ProjectSettings.BuildAgents.Password -eq '<Password>' -or $null -eq $datum.Global.BuildAgents.Password)
+{
+    $defaultPassword = 'Somepass1'
+    $password = Read-Host -Prompt 'Enter the password for the build agents or press <Enter> to use the default password (Somepass1)'
+
+    if ($password -eq '')
+    {
+        $datum.Global.ProjectSettings.BuildAgents.Password = $defaultPassword
+    }
+    else
+    {
+        $datum.Global.ProjectSettings.BuildAgents.Password = $password
+    }
+    if ($datum.Global.ProjectSettings.PersonalAccessToken -ne '<PersonalAccessToken>')
+    {
+        $pass = $datum.__Definition.DatumHandlers.'Datum.ProtectedData::ProtectedDatum'.CommandOptions.PlainTextPassword | ConvertTo-SecureString -AsPlainText -Force
+        $datum.Global.ProjectSettings.PersonalAccessToken = $datum.Global.ProjectSettings.PersonalAccessToken | Protect-Datum -Password $pass -MaxLineLength 9999
+    }
+    $datum.Global.ProjectSettings | ConvertTo-Yaml | Out-File $PSScriptRoot\..\source\Global\ProjectSettings.yml
+}
+
+if ((git status -s) -like '*source/Global/ProjectSettings.yml')
+{
+    git add $PSScriptRoot\..\source\Global\ProjectSettings.yml
+    git commit -m 'Updated Azure DevOps Build Agent Data' | Out-Null
+    git push | Out-Null
+}
+
 if ($EnvironmentName)
 {
     Write-Host "Filtering environments to: $($EnvironmentName -join ', ')" -ForegroundColor Magenta
     $environments = $environments | Where-Object { $EnvironmentName -contains $_ }
 }
 Write-Host "Setting up environments: $($environments -join ', ')" -ForegroundColor Magenta
-
-if (-not (Test-LabAzureModuleAvailability))
-{
-    Install-LabAzureRequiredModule -Scope AllUsers
-}
 
 foreach ($envName in $environments)
 {
@@ -67,36 +90,42 @@ foreach ($envName in $environments)
     Write-Host "Successfully connected to Azure environment '$envName'."
 
     Write-Host "Creating lab for environment '$envName' in the subscription."
-    New-LabDefinition -Name "$($datum.Global.ProjectSettings.Name)$($envName)" -DefaultVirtualizationEngine Azure -Notes $notes
+    New-LabDefinition -Name "$($datum.Global.ProjectSettings.ProjectName)$($envName)" -DefaultVirtualizationEngine Azure -Notes $notes
 
-    Add-LabAzureSubscription -SubscriptionId $environment.AzSubscriptionId -DefaultLocation $datum.Global.AzureDevOps.BuildAgents.AzureLocation
+    Add-LabAzureSubscription -SubscriptionId $environment.AzSubscriptionId -DefaultLocation $datum.Global.ProjectSettings.BuildAgents.AzureLocation
 
-    Set-LabInstallationCredential -Username $datum.Global.AzureDevOps.BuildAgents.UserName -Password $datum.Global.AzureDevOps.BuildAgents.Password
+    Sync-LabAzureLabSources
+
+    Set-LabInstallationCredential -Username $datum.Global.ProjectSettings.BuildAgents.UserName -Password $datum.Global.ProjectSettings.BuildAgents.Password
 
     $PSDefaultParameterValues = @{
         'Add-LabMachineDefinition:ToolsPath'       = "$labSources\Tools"
         'Add-LabMachineDefinition:OperatingSystem' = 'Windows Server 2022 Datacenter (Desktop Experience)'
     }
 
-    Add-LabDiskDefinition -Name "Lcm$($datum.Global.ProjectSettings.Name)$($envName)Data1" -DiskSizeInGb 250 -Label Data
+    Add-LabDiskDefinition -Name "Lcm$($datum.Global.ProjectSettings.ProjectName)$($envName)Data1" -DiskSizeInGb 250 -Label Data
 
-    Add-LabMachineDefinition -Name "Lcm$($datum.Global.ProjectSettings.Name)$($envName)" -AzureRoleSize $datum.Global.AzureDevOps.BuildAgents.AzureRoleSize -DiskName "Lcm$($datum.Global.ProjectSettings.Name)$($envName)Data1"
+    Add-LabMachineDefinition -Name "Lcm$($datum.Global.ProjectSettings.ProjectName)$($envName)" -AzureRoleSize $datum.Global.ProjectSettings.BuildAgents.AzureRoleSize -DiskName "Lcm$($datum.Global.ProjectSettings.ProjectName)$($envName)Data1"
 
     Install-Lab
 
     Write-Host "Finished creating lab for environment '$envName'."
 
+    Checkpoint-LabVM -All -SnapshotName AfterInstall
+
+    Write-Host "Created snapshot 'AfterInstall' for lab '$($datum.Global.ProjectSettings.ProjectName)$($envName)'."
+
 }
 
-Write-Host "Finished creating all labs VMs for the project '$($datum.Global.ProjectSettings.Name)'" -ForegroundColor Green
+Write-Host "Finished creating all labs VMs for the project '$($datum.Global.ProjectSettings.ProjectName)'" -ForegroundColor Green
 
 # ------------------------------------------------------------------------------------------------------------
 
 Write-Host 'Starting to assign managed identity to VMs and set permissions for Microsoft365DSC workloads' -ForegroundColor Green
-$labs = Get-Lab -List | Where-Object { $_ -Like "$($datum.Global.ProjectSettings.Name)*" }
+$labs = Get-Lab -List | Where-Object { $_ -Like "$($datum.Global.ProjectSettings.ProjectName)*" }
 foreach ($lab in $labs)
 {
-    $lab -match "(?:$($datum.Global.ProjectSettings.Name))(?<Environment>\w+)" | Out-Null
+    $lab -match "(?:$($datum.Global.ProjectSettings.ProjectName))(?<Environment>\w+)" | Out-Null
     $envName = $Matches.Environment
     if ($EnvironmentName -and $envName -notin $EnvironmentName)
     {
@@ -122,25 +151,25 @@ foreach ($lab in $labs)
     $resourceGroupName = $lab.AzureSettings.DefaultResourceGroup.ResourceGroupName
     Write-Host "Working in lab '$($lab.Name)' with environment '$envName'"
 
-    if (-not ($id = Get-AzUserAssignedIdentity -Name "Lcm$($datum.Global.ProjectSettings.Name)$envName" -ResourceGroupName $resourceGroupName -ErrorAction SilentlyContinue))
+    if (-not ($id = Get-AzUserAssignedIdentity -Name "M365DscLcm$($datum.Global.ProjectSettings.ProjectName)$($envName)Identity" -ResourceGroupName $resourceGroupName -ErrorAction SilentlyContinue))
     {
-        Write-Host "Managed Identity not found, creating it named 'Lcm$($datum.Global.ProjectSettings.Name)$($envName)'"
-        $id = New-AzUserAssignedIdentity -Name "Lcm$($datum.Global.ProjectSettings.Name)$($lab.Notes.Environment)" -ResourceGroupName $lab.AzureSettings.DefaultResourceGroup.ResourceGroupName -Location $lab.AzureSettings.DefaultLocation.Location
+        Write-Host "Managed Identity not found, creating it named 'Lcm$($datum.Global.ProjectSettings.ProjectName)$($envName)'"
+        $id = New-AzUserAssignedIdentity -Name "M365DscLcm$($datum.Global.ProjectSettings.ProjectName)$($lab.Notes.Environment)Identity" -ResourceGroupName $lab.AzureSettings.DefaultResourceGroup.ResourceGroupName -Location $lab.AzureSettings.DefaultLocation.Location
     }
 
-    $vm = Get-AzVM -ResourceGroupName $resourceGroupName -Name "Lcm$($datum.Global.ProjectSettings.Name)$envName"
+    $vm = Get-AzVM -ResourceGroupName $resourceGroupName -Name "Lcm$($datum.Global.ProjectSettings.ProjectName)$($envName)"
     if ($vm.Identity.UserAssignedIdentities.Keys -eq $id.Id)
     {
-        Write-Host "Managed Identity already assigned to VM 'Lcm$($datum.Global.ProjectSettings.Name)$($lab.Notes.Environment)' in environment '$envName'"
+        Write-Host "Managed Identity already assigned to VM 'Lcm$($datum.Global.ProjectSettings.ProjectName)$($lab.Notes.Environment)' in environment '$envName'"
     }
     else
     {
-        Write-Host "Assigning Managed Identity to VM 'Lcm$($datum.Global.ProjectSettings.Name)$($lab.Notes.Environment)' in environment '$envName'"
+        Write-Host "Assigning Managed Identity to VM 'Lcm$($datum.Global.ProjectSettings.ProjectName)$($lab.Notes.Environment)' in environment '$envName'"
         Update-AzVM -ResourceGroupName $lab.AzureSettings.DefaultResourceGroup.ResourceGroupName -VM $vm -IdentityType UserAssigned -IdentityId $id.Id | Out-Null
     }
 
-    $azIdentity = New-M365DscIdentity -Name "Lcm$($datum.Global.ProjectSettings.Name)$envName" -PassThru
-    Write-Host "Setting permissions for managed identity 'Lcm$($datum.Global.ProjectSettings.Name)$envName' in environment '$envName'"
+    $azIdentity = New-M365DscIdentity -Name "M365DscLcm$($datum.Global.ProjectSettings.ProjectName)$($envName)Identity" -PassThru
+    Write-Host "Setting permissions for managed identity 'M365DscLcm$($datum.Global.ProjectSettings.ProjectName)$($envName)Identity' in environment '$envName'"
     Add-M365DscIdentityPermission -Identity $azIdentity -AccessType Update
 
     $vm = Get-LabVM
