@@ -1,4 +1,4 @@
-Task AzureInit {
+task ConfigDataPreparation {
 
     try
     {
@@ -10,7 +10,6 @@ Task AzureInit {
         Write-Build Yellow 'There were issues importing the Az modules.'
     }
 
-    $datum = New-DatumStructure -DefinitionFile $ProjectPath\source\Datum.yml
     $global:azBuildParameters = @{}
 
     foreach ($env in $datum.Global.Azure.Environments.GetEnumerator())
@@ -27,5 +26,11 @@ Task AzureInit {
             Identities   = $env.Value.Identities | Where-Object { $_.CertificateThumbprint }
         }
 
+    }
+
+    if ($datum.Global.ProjectSettings.ProjectName -eq '<ProjectName>')
+    {
+        Write-Host "The ProjectName placeholder will be replaced with 'Microsoft365DscWorkshopDemoTemplate' for the build to work." -ForegroundColor Yellow
+        $datum.Global.ProjectSettings.ProjectName = 'Microsoft365DscWorkshopDemoTemplate'
     }
 }
