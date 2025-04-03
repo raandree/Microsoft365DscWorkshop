@@ -8,18 +8,44 @@ task StartDscConfiguration {
         Write-Error 'The build environment is not set'
     }
 
-    Wait-DscLocalConfigurationManager
+    Wait-DscLocalConfigurationManager -DoNotWaitForProcessToFinish
 
     $mofOutputDirectory = Join-Path -Path $OutputDirectory -ChildPath $MofOutputFolder
-    Start-DscConfiguration -Path "$mofOutputDirectory\$environment" -Wait -Verbose -Force -ErrorAction Stop
+    try
+    {
+        Start-DscConfiguration -Path "$mofOutputDirectory\$environment" -Wait -Force -Verbose -ErrorAction Stop
+    }
+    catch
+    {
+        $waitTimeInSeconds = Get-Random -Minimum 10 -Maximum 40
+        Write-Host "Failed to start DSC configuration. Will retry in $waitTimeInSeconds seconds." -ForegroundColor Yellow
+
+        Start-Sleep -Seconds $waitTimeInSeconds
+        Wait-DscLocalConfigurationManager -DoNotWaitForProcessToFinish
+
+        Start-DscConfiguration -Path "$mofOutputDirectory\$environment" -Wait -Force -Verbose -ErrorAction Stop
+    }
 
 }
 
 task StartExistingDscConfiguration {
 
-    Wait-DscLocalConfigurationManager
+    Wait-DscLocalConfigurationManager -DoNotWaitForProcessToFinish
 
-    Start-DscConfiguration -UseExisting -Wait -Verbose -Force -ErrorAction Stop
+    try
+    {
+        Start-DscConfiguration -UseExisting -Wait -Verbose -ErrorAction Stop
+    }
+    catch
+    {
+        $waitTimeInSeconds = Get-Random -Minimum 10 -Maximum 40
+        Write-Host "Failed to start existing DSC configuration. Will retry in $waitTimeInSeconds seconds." -ForegroundColor Yellow
+
+        Start-Sleep -Seconds $waitTimeInSeconds
+        Wait-DscLocalConfigurationManager -DoNotWaitForProcessToFinish
+
+        Start-DscConfiguration -UseExisting -Wait -Verbose -ErrorAction Stop
+    }
 
 }
 
@@ -66,19 +92,16 @@ task InitializeModuleFolder {
     Wait-DscLocalConfigurationManager
 
     $programFileModulePath = 'C:\Program Files\WindowsPowerShell\Modules'
-    $modulesToKeep = 'Microsoft.PowerShell.Operation.Validation', 'PackageManagement', 'Pester', 'PowerShellGet', 'PSReadline'
-
-    Write-Host "Cleaning PowerShell module folder '$programFileModulePath'"
-    Get-ChildItem -Path $programFileModulePath | Where-Object { $_.BaseName -notin $modulesToKeep } | ForEach-Object {
-
-        Write-Host "Removing module '$($_.BaseName)'"
-        $_ | Remove-Item -Recurse -Force
-    }
 
     Write-Host "Copying modules from '$requiredModulesPath' to '$programFileModulePath'"
     Get-ChildItem -Path $requiredModulesPath | ForEach-Object {
         Write-Host "Copying module '$($_.BaseName)'"
-        $_ | Copy-Item -Destination $programFileModulePath -Recurse -Force
+        $_ | Copy-Item -Destination $programFileModulePath -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable copyErrors
+
+        if ($copyErrors)
+        {
+            Write-Host "There were $($copyErrors.Count) errors copying the module '$($_.BaseName)'"
+        }
     }
 
 }

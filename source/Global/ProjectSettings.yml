@@ -1,9 +1,10 @@
 OrganizationName: <OrganizationName>
 PersonalAccessToken: <PersonalAccessToken>
 ProjectName: <ProjectName>
-AgentPoolName: DSC
+AgentPoolName: <AgentPoolName>
+NumbertOfBuildAgents: 4
 BuildAgents:
   UserName: worker
   Password: <Password>
   AzureLocation: West Europe
-  AzureRoleSize: Standard_D4ls_v5
+  AzureRoleSize: Standard_D4ds_v6

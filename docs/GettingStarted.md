@@ -16,7 +16,7 @@
     - [1.4.5. `30 Create Agent VMs.ps1`](#145-30-create-agent-vmsps1)
     - [1.4.6. `31 Agent Setup.ps1`](#146-31-agent-setupps1)
   - [1.5. Running the Pipeline](#15-running-the-pipeline)
-- [The quick guide to the Microsoft365DscWorkshop](#the-quick-guide-to-the-microsoft365dscworkshop-1)
+  - [All done](#all-done)
 
 ## 1. Getting started
 
@@ -70,13 +70,13 @@ Call the script [.\lab\00 Prep.ps1](../lab//00%20Prep.ps1). It does the followin
 
 ### 1.3.2. Test the Build and Download Dependencies
 
-After having cloned the project to your development machine, please open the solution in Visual Studio Code. In the PowerShell prompt, call the build script:
+Now test the build locally. In the PowerShell prompt, call the build script:
 
 ```powershell
 .\build.ps1 -UseModuleFast -ResolveDependency
 ```
 
-> :information_source: [ModuleFast](https://github.com/JustinGrote/ModuleFast)sometimes has a problem and does not download all the modules it should. If something is missing and you see error messages, please close the PowerShell session and try again. Usually everything works after the second time.
+> :information_source: [ModuleFast](https://github.com/JustinGrote/ModuleFast) sometimes has a problem and does not download all the modules it should. If something is missing and you see error messages, please close the PowerShell session and try again. Usually everything works after the second time.
 
 This build process takes around 15 to 20 minutes to complete the first time. Downloading all the required dependencies defined in the file [RequiredModules.psd1](../RequiredModules.psd1) takes time and discovering the many DSC resources in [Microsoft365DSC](https://microsoft365dsc.com/).
 
@@ -141,6 +141,10 @@ After the preparation script [.\lab\00 Prep.ps1](../lab//00%20Prep.ps1) and the 
 ### 1.4.2. `10 Setup App Registrations.ps1`
 
 Please run the script [10 Setup App Registrations.ps1](../lab/10%20Setup%20App%20Registrations.ps1). It creates all the required applications in each Azure tenant defined in the [Azure.yml](../source/Global/Azure.yml) file. Then it assigns these apps very high privileges as they are used to control and export the tenant later.
+
+> :warning: The script connects to the Graph API and Exchange, hence you get two authentication prompts per tenant you want to configure. At the time of writing the guide, one authentication request is in the Edge browser, the other one in a separate window that might be in the background. If the script hangs and you are waiting for the second authentication prompt, please check for another window in the background.
+
+> :warning: The Git authentication with Azure DevOps at the end of the script requires Java Script to be enabled in the browser. Please add the sites as requested.
 
 - The app `M365DscSetupApplication` is used to do the initial setup of the environment. In theory it is also possible to do this with a Entra ID user but usually authentication requirements interfere or stop the automation process.
 - The app `M365DscLcmApplication` will be used by the Azure DevOps build agent(s) to put your tenant into the desired state. For each app, a service principal is created in Exchange Online as well.
@@ -266,7 +270,7 @@ The stage `Deployment in Dev` does the actual job: It compares the current state
 
 The last stage is `Validating DSC Configuration`. We expect the current state of the Azure tenant(s) to be as defined in the Yaml database as the `Deployment in Dev` just finished its job. To make sure that this is really the case, this pipeline stage compares the current to the desired state once again and reports any differences between them. If this stage does not fail, we know that everything is we expect it to be.
 
-# The quick guide to the Microsoft365DscWorkshop
+## All done
 
 You have completed the getting started guide. You now have an Azure tenant under source control. To follow DevOps best practices, all changes to your Azure tenant should be made through the pipelines you have set up. This ensures that all changes are tracked, repeatable, and can be rolled back if necessary.
 
