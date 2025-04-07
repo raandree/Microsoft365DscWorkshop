@@ -30,20 +30,29 @@ stages:
                     dir -Path env: | Format-Table -Property Name, Value -AutoSize | Out-String | Write-Host
 
               - task: PowerShell@2
-                name: CleanModuleFolder
-                displayName: "Clean Program Files Modules"
+                name: InitializeModuleFolder
+                displayName: Initialize Program Files Modules
                 inputs:
                   pwsh: true
                   filePath: ./build.ps1
-                  arguments: -UseModuleFast -ResolveDependency -Tasks CleanModuleFolder
+                  arguments: -UseModuleFast -ResolveDependency -Tasks InitializeModuleFolder
 
               - task: PowerShell@2
                 name: ExportTenantConfig
                 displayName: Export Tenant Configuration
                 inputs:
-                  pwsh: true
+                  pwsh: false
                   filePath: ./build.ps1
                   arguments: -UseModuleFast -ResolveDependency -Tasks export
+                continueOnError: true
+
+              - task: PowerShell@2
+                name: ConvertTenantConfig
+                displayName: Convert Exported Tenant Configuration
+                inputs:
+                  pwsh: true
+                  filePath: ./build.ps1
+                  arguments: -UseModuleFast -Tasks exportConvert
                 continueOnError: true
 
               - task: PublishPipelineArtifact@1
