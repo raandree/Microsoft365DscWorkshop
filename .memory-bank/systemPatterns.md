@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-08-07
+last-verified: 2026-10-29
 owner: active-agent
 source: repository evidence
 ---
@@ -21,9 +21,9 @@ project settings.
 The Sampler build in `build.yaml` runs `Clean`, `ModuleCleanup`,
 `Build_Module_ModuleBuilder`, `LoadDatumConfigData`, `ConfigDataPreparation`,
 `TestConfigData`, `CompileDatumRsop`, `Set_PSModulePath`, `TestDscResources`,
-`CompileRootConfiguration` and `CompileRootMetaMof`, then packs checksums,
-compressed modules and artifacts and runs `TestBuildAcceptance`. The root
-configuration imports the composite modules `PSDesiredStateConfiguration`,
+`PrepareDscCompile`, `CompileRootConfiguration` and `CompileRootMetaMof`, then
+packs checksums, compressed modules and artifacts and runs `TestBuildAcceptance`.
+The root configuration imports the composite modules `PSDesiredStateConfiguration`,
 `DscConfig.M365` and `DscConfig.Demo`.
 
 Azure DevOps pipelines in `pipelines/` cover build, test, push, reapply and
@@ -179,6 +179,13 @@ app registrations, the Azure DevOps project and the agent VMs.
   generated block so regenerating it cannot drop them again, and the version has
   to be kept in sync by hand because each sub-module manifest requires that
   exact `Microsoft.Graph.Authentication` version.
+- Enforcement: `tests/ConfigData/RequiredModules.Tests.ps1` fails by pin name
+  when a `Microsoft.Graph.*` pin differs from the `Microsoft.Graph.Authentication`
+  pin, and step 6 of the upgrade procedure inside `RequiredModules.psd1` names the
+  step. The 2026-10-29 bump to Microsoft365DSC `2.26.1021.1` moved the
+  Authentication pin to `2.41.1` and left the four pins at `2.35.1`; the restore
+  saved a second `Microsoft.Graph.Authentication` and 26 `AzHelpers.Tests.ps1`
+  tests did not run because of `Assembly with same name is already loaded`.
 
 ### Decision 14: A lab helper module imports its own dependencies
 
@@ -442,3 +449,72 @@ app registrations, the Azure DevOps project and the agent VMs.
   enclosing loop escaped from your code` over it. Pester 5.7.1 reports the real
   error. When a container or block fails with that message, wrap the setup in a
   `try/catch` that logs the record to `$env:TEMP` and read it from there.
+
+### Decision 28: Compile class-based resources through a targeted lookup and one DSC engine
+
+- Choice: The build does not let Sampler.DscPipeline and DscBuildHelpers scan
+  every resource of every module. `PrepareDscCompile`
+  (`.build/DscCompileTasks.ps1`, between `TestDscResources` and
+  `CompileRootConfiguration`) makes the pinned `PSDesiredStateConfiguration` the
+  only DSC engine, finds the composite resources the nodes use by their folder
+  layout, and fills the private metadata table of DscBuildHelpers for the
+  resources and embedded types those composites wrap, so
+  `Initialize-DscResourceMetaInfo` returns at once.
+  `source/CompileRootConfiguration.ps1` replaces the unfiltered
+  `Get-DscResource` preload with that lookup; it only takes effect because
+  `source/RootConfiguration.ps1` exists next to it, which is a verbatim copy.
+  `.build/DscCompileTasks.ps1` overrides
+  `CompressModulesWithChecksum` and selects the modules to zip from their
+  manifests and `DscResources` folders instead of listing their resources.
+  `Get-ModuleVersionDeviation` makes `PrepareDscCompile` warn when
+  Sampler.DscPipeline or DscBuildHelpers differs from the version the overrides
+  were written for (`0.3.0` and `0.4.0`).
+- Rationale: With class-based resources the engine caches nothing, so every
+  per-resource call costs seconds, and the pipeline makes about 1,400
+  `Get-DscResourceProperty` calls and 410 composite imports (see
+  `debugging-insights.md`). The targeted version computes the same entries for
+  the 11 resources and types the project uses in 33 to 48 s, which brings the
+  build from failing after 70 min to 6 to 8 min. A `.build` task named like a
+  pipeline task overrides it and `source/CompileRootConfiguration.ps1` is the
+  documented extension point, so no restored module is edited.
+- Cost: The overrides shadow upstream code and write private variables of
+  DscBuildHelpers 0.4.0 (`standardCimTypes`, `allDscResourcePropertiesTable`,
+  `allDscSchemaClasses`), while both modules are pinned to `latest`; the
+  deviation warning is the only signal of a newer release. A composite that
+  names no literal `$dscResourceName` gets no metadata, and the seeding warns.
+  `tests/ConfigData/DscCompile.Tests.ps1` asserts that all 179 composites of
+  DscConfig.M365 name exactly one resource. Replace the seeding with a resource
+  filter in `Initialize-DscResourceMetaInfo` when DscBuildHelpers offers one.
+  The register of Decision 29 tracks this and every other workaround.
+
+### Decision 29: Track every workaround for a dependency in a register that the build checks
+
+- Choice: Each change that a dependency needs has an entry with an ID in
+  `docs/upstream-changes.md` (prefix per repository: `SDP` for
+  Sampler.DscPipeline, `DBH` for DscBuildHelpers, `DC365` for
+  raandree/DscConfig.M365, `M365PSDSC` for the Microsoft365DSC engine). A
+  workaround in this repository carries the comment `UPSTREAM: <ID>`, and the
+  entry has the line `- **Local workaround:**` that names its files or says
+  `none`. `tests/ConfigData/UpstreamChanges.Tests.ps1` fails when a marker names
+  an ID that the register lacks, when an entry names a workaround that no marker
+  carries, and when a named file is gone. A change is finished when its
+  workaround line says `none`.
+- Rationale: The user stated that tracking every change the dependencies need is
+  important, because the upstream changes are made later in the owning
+  repositories. The workarounds shadow upstream code (Decision 28), so without a
+  record the knowledge of what to change and what to delete would live only in a
+  session. The test makes the record fail loudly instead of rotting: a new
+  workaround without an entry, or a deleted file that the register still names,
+  breaks `TestConfigData`.
+- Practice: Verify a claim against the upstream sources before it enters the
+  register. Two statements of the first draft were wrong and were corrected
+  after reading the code and measuring: the auto-loading rule (path order, not
+  the manifest) and which composites import Microsoft365DSC (179, not 205). The
+  installed files that the workarounds shadow were compared with `main` of both
+  repositories, so diffs written against them apply there. The drift of
+  DscConfig.M365 is a snapshot in `docs/upstream-changes-composite-drift.md`;
+  the generator's own diff replaces it after a regeneration. Exercise the next
+  step of the chain in a scratch clone before calling the register complete:
+  compiling the regenerated composites with a value for an embedded property
+  found DBH-4 (`Write-CimPropertyValue` writes an empty block for nullable
+  properties), which no read of the code or of the real data had shown.

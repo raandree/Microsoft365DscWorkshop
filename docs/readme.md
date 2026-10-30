@@ -19,6 +19,9 @@ Project Name | Project Description
 [Microsoft365DSC](https://microsoft365dsc.com/) | This project does the regular work and puts the configuration data and guidelines into practice.
 
 For all other dependencies, please refer to the file [RequiredModules.psd1](/RequiredModules.psd1).
+The build carries workarounds for some of them until they have changed.
+[Upstream changes](upstream-changes.md) lists each change that a dependency
+needs and the workaround that it makes obsolete.
 
 ## 1.3. Technical Requirements
 

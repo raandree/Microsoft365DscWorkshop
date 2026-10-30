@@ -1,6 +1,6 @@
 ---
 status: current
-last-verified: 2026-08-17
+last-verified: 2026-10-30
 owner: active-agent
 source: repository evidence
 ---
@@ -9,147 +9,114 @@ source: repository evidence
 
 ## Current status
 
-The build is green on `feature/update2608` with the dependency set updated to
-August 2026 levels.
+On `update/2610` the default workflow (`build` plus `pack`) is green on the
+October 2026 dependency set with Microsoft365DSC `2.26.1021.1`, verified in a
+clean clone (22 tasks, 6 min 32 s) and, finally, in the working tree itself (22
+tasks, 0 errors, 0 warnings in 6 min 27 s), with 199 configuration-data and 12
+acceptance tests passing. It needs the project-level DSC compile overrides
+(Decision 28 in `systemPatterns.md`) and the fix of 5 configuration keys that
+2.x dropped. Every change that the dependencies need is tracked in
+`docs/upstream-changes.md` (Decision 29). Nothing is committed or pushed. Before
+that the last known green builds were the `feature/update2608` set with
+Microsoft365DSC `1.26.729.2` and, verified on 2026-10-29, `1.26.909.1` (6 min
+5 s). Not verified: the LCM's handling of the class-based MOFs and any live
+tenant effect.
 
 ## Recent milestones
 
-- 2026-08-17 Fixed `.\build.ps1` failing in `TestConfigData` with Pester 6.1.0's
-  `A 'break' or 'continue' statement ... escaped from your code`. That message is
-  a misdiagnosis: Pester 6.1.0 throws it from a `finally` over any terminating
-  error in user code. The real error was `Import-Module -Name Az.Accounts
-  -RequiredVersion 5.3.2 -Force` in the top-level `BeforeAll` of
-  `tests/ConfigData/AzHelpers.Tests.ps1` dying with `Assembly with same name is
-  already loaded`, because `.build/ConfigDataPreparation.ps1` had already loaded
-  `Az.Accounts 5.5.2` and `Az.Resources 9.0.1` into the build session. The
-  `BeforeAll` now imports a module only when no module of that name is loaded,
-  and reads the version to pin from `RequiredModules.psd1` rather than repeating
-  it.
-- 2026-08-07 Fixed the `push` pipeline failing in `Deploy DSC Configuration` with
-  `MSFT_SPOAccessControlSettings ... The current connection holds no SharePoint
-  context`. The Dev tenant has no SharePoint Online provisioned — neither
-  `MngEnvMCAP167509.sharepoint.com` nor its `-admin` host resolves — so
-  `Connect-PnPOnline` can never build a SharePoint context. Added the
-  per-environment `HasSharePointOnline` setting as the counterpart of
-  `HasExchangeOnline`: `source/Datum.yml` swaps both SharePoint layers for the
-  new empty `source/1-AllTenantsConfig/SharePointDisabled` layer,
-  `.build/Export/ExportTenantData.ps1` skips the `SPO*` components, and a
-  configuration data test guards the mechanism.
-- 2026-08-07 Fixed the `push` pipeline failing in `Build DSC Artifacts` with
-  `Detected characters in arguments that may not be executed correctly by the
-  shell`. The `Enable shell tasks arguments validation` setting rejects the
-  environment filter script block in the `arguments` input of `PowerShell@2`,
-  and backtick escaping would turn it into a literal string, so
-  `pipelines/buildTemplate.yml` now calls `./build.ps1` from an inline `script`
-  for both `Build DSC Artifacts` and the disabled `Pack DSC Artifacts`.
-- 2026-08-06 Fixed the export pipeline stage failing in `Publish Exported Data`
-  with `Path does not exist: ...\output\Export`. The cause was two matching
-  export applications: `source/Global/Azure.yml` still carried the sample
-  identity `<Name of your Application of Managed Identity>` with
-  `IsExportApplication: true` next to `M365DscExportApplication`, so
-  `.build/Export/ExportTenantData.ps1` stopped before creating the folder while
-  `continueOnError: true` hid it. The placeholder was removed, the task ignores
-  `<...>` placeholders and counts matches instead of testing for `$null`, the
-  export step lost `continueOnError`, and a configuration data test asserts one
-  export application per environment.
-- 2026-08-06 Fixed `lab/31 Agent Setup.ps1` failing to download the Azure
-  Pipelines agent from the retired CDN `vstsagentpackage.azureedge.net`. All
-  build agent software now comes from Chocolatey — `vscode`,
-  `vscode-powershell`, `git`, `notepadplusplus` and `azure-pipelines-agent` —
-  which also removed the script's need for the Azure lab sources share and with
-  it the failing hard-coded `C:\AL\AzureLabSources.ps1` call. Two AST-based
-  regression cases guard both defects.
-- 2026-08-06 Fixed `lab/30 Create Agent VMs.ps1` registering a superfluous Entra
-  application next to the build agent's user-assigned managed identity, which
-  surfaced as a `404` from `Update-MgApplication`. It now calls
-  `New-M365DscIdentity -OnlyServicePrincipals`, and `Remove-M365DscIdentity`
-  skips `Remove-MgApplication` for an identity without an application. The
-  leftover application was removed from the Dev tenant.
-- 2026-08-06 Fixed the post-deployment validation of `Install-Lab` reporting a
-  false `Lab deployment seems to have failed`. `AutomatedLabTest` 5.61.4 cannot
-  be discovered under Pester 6, so `lab/00 Prep.ps1` pins Pester `5.7.1` and
-  `lab/30` imports it before `Install-Lab`.
-- 2026-08-06 Fixed `lab/30`, `lab/31`, `lab/88`, `lab/89` and `lab/97` stopping
-  with `is not licensed for Exchange Online` on an environment configured with
-  `HasExchangeOnline: false`. They called `Connect-M365Dsc` without the
-  `SkipExchangeOnline` switch although none of them uses Exchange Online; all
-  five now derive it from the environment, a Pester case guards every `lab/`
-  script that connects, and both messages naming the removed `ExchangeConfigSet`
-  node property were corrected.
-- 2026-08-06 Fixed `lab/20 Configure AzDo Project.ps1` aborting the pipeline
-  commit with `fatal: ..\pipelines\build.yml ... is outside repository` when
-  started from the repository root. The git calls now run with
-  `git -C <repository root>` and consume the repository-root relative paths of
-  `git diff --name-only` unchanged; `lab/31 Agent Setup.ps1` lost the same `..`
-  assumption.
-- 2026-08-06 Fixed `Disconnect-AzAccount` failing with `Method not found:
-  MsalCacheHelper.RegisterCache(ITokenCache)` in every `lab/` script. The MSAL
-  versions of `Az.Accounts` and `Microsoft.Graph.Authentication` are both
-  dictated by the Microsoft365DSC dependency block, so `Disconnect-M365Dsc`
-  falls back to `Clear-AzContext -Scope Process` for that specific error and
-  still surfaces any other one.
-- 2026-08-06 Added support for tenants without an Exchange Online license. The
-  user-maintained `HasExchangeOnline` setting per environment is the single
-  switch: the lab scripts skip their Exchange Online work, `Connect-M365Dsc`
-  validates the tenant against it with the new
-  `Test-M365DscExchangeOnlineLicense` before any prep work, `source/Datum.yml`
-  swaps both Exchange layers for an empty `ExchangeDisabled` layer so no `cEXO*`
-  configuration is compiled, and the export skips the `EXO*` components.
-- 2026-08-06 Fixed `Remove-M365DscIdentityPermission` failing to remove the
-  subscription `Owner` assignment on the Azure MFA claims challenge. The retry
-  from `Add-M365DscIdentityPermission` moved into the shared
-  `Resolve-M365DscAzureMfaChallenge`, `Remove-AzRoleAssignment` now runs with
-  `-ErrorAction Stop`, and the false success message was corrected. Three Pester
-  tests cover both helper branches and the removal retry.
-- 2026-08-05 Fixed `Connect-M365DscAzure` selecting the Azure account's default
-  subscription during application-secret or certificate authentication. It now
-  forwards the configured subscription to `Connect-AzAccount`; an offline
-  regression test covers both service-principal paths. The live connection test
-  selects `<dev-subscription-name>` and passes all service-context validation.
-- 2026-08-05 Fixed the placeholder identity in `lab/10 Setup App
-  Registrations.ps1`: unfilled `<...>` names are skipped, `IsManagedIdentity` is
-  honoured through `-OnlyServicePrincipals`, and the placeholder was removed
-  from `source/Global/Azure.yml`. Also fixed `-OnlyServicePrincipals -PassThru`
-  and added an MFA claims-challenge retry around `New-AzRoleAssignment`.
-- 2026-08-05 Fixed `lab/10 Setup App Registrations.ps1` failing with `The term
-  'New-M365DSCSelfSignedCertificate' is not recognized`: `lab/AzHelpers.psm1`
-  now imports `lab/CertHelpers.psm1` instead of relying on the `InitLab` task.
-- 2026-08-05 Fixed `lab/10 Setup App Registrations.ps1` failing with `The term
-  'Get-MgApplication' is not recognized`: Microsoft365DSC `1.26.729.2` stopped
-  pinning the granular `Microsoft.Graph.*` modules the lab scripts call.
-  `RequiredModules.psd1` now declares the four they need at `2.35.1`.
-- 2026-08-05 Diagnosed the `AADSTS500014` failure of
-  `lab/10 Setup App Registrations.ps1` as a lapsed Microsoft 365 subscription in
-  the Dev tenant, not a code defect. No subscribed SKUs, all 88 assigned plans
-  `Deleted`, and every workload service principal disabled. Not fixable from
-  this repository.
-- 2026-08-05 Fixed `lab/10 Setup App Registrations.ps1`: it never imported
-  `AzHelpers.psm1` and relied on another script having loaded the module in the
-  same session.
-- 2026-08-05 Fixed `lab/10 Setup App Registrations.ps1`: `Connect-M365Dsc` in
-  `lab/AzHelpers.psm1` called `Sync-M365DSCParameter`, which Microsoft365DSC
-  `1.26.729.2` no longer ships. Replaced it with the local
-  `Select-M365DscCommandParameter`.
-- 2026-08-05 Fixed `lab/00 Prep.ps1` for a session that has already run
-  `build.ps1`: `Set_PSModulePath` strips the CurrentUser and AllUsers module
-  scopes, so AutomatedLab was reinstalled and its commands stayed unrecognized.
-  Added `Restore-DefaultModulePath`.
-- 2026-08-05 Fixed `lab/00 Prep.ps1`: an `Az.Accounts` 5.5.1 copy in the
-  CurrentUser scope shadowed 5.5.2 in AllUsers, so
-  `Test-LabAzureModuleAvailability` could never succeed. Added an elevation
-  guard, a prerelease-aware installed-version check, the `Resolve-ShadowedModule`
-  cleanup and comment-based help; repinned AutomatedLab to `5.61.0`.
-- 2026-08-05 Fixed the build: `DscConfig.M365` was pinned to the unpublished
-  version `0.7.9-preview0001`, so the module never restored and
-  `TestConfigData` failed during Pester discovery. Repinned to
-  `0.7.0-preview0001`; build green again, test counts unchanged.
-- 2026-08-04 Dependencies updated: Microsoft365DSC `1.26.729.2`, the
-  regenerated 14-entry dependency block, ComputerManagementDsc `10.0.0`,
-  NetworkingDsc `9.1.0`, PSDesiredStateConfiguration `2.0.8`, Az.KeyVault
-  `6.4.2` and PSResourceGet `1.2.0`. Build green, test counts unchanged.
-- 2026-08-04 Memory Bank base created.
-- 2026-08-04 Full build verified green: 21 tasks, 0 errors, 0 warnings.
-- 2026-08-04 `017fc2a` fixed the `TestConfigData` task for Pester 6.
+- 2026-10-30 Wrote one handoff prompt per repository for the upstream work, in
+  dependency order: DscBuildHelpers, Sampler.DscPipeline, DscConfig.M365, the
+  Microsoft365DSC engine (issues only) and then this repository, which consumes
+  the releases and deletes the workarounds. Each prompt names its register
+  entries, the proof and a result file that feeds the next step; a
+  scratch-blueprint toolset proves a change with a full build without touching
+  `output\` (default build green in a scratch copy: 22 tasks, 9 min under load).
+  The prompts live on the user's desktop. Two register findings are new: the
+  DscConfig.M365 unit tests need DBH-1, because they call
+  `Initialize-DscResourceMetaInfo` over the whole module path, and M365PSDSC-1
+  is re-scoped. Nothing was pushed.
+- 2026-10-29 Wrote a handoff prompt for the planning and tracking of the
+  cross-repository upstream work outside this repository; it lives in the
+  session files folder and summarizes the evidence and the 13 register entries.
+- 2026-10-29 Tracked every change that the dependencies need, for upstream pull
+  requests later. `docs/upstream-changes.md` registers 13 changes in
+  Sampler.DscPipeline, DscBuildHelpers, DscConfig.M365 and the Microsoft365DSC
+  engine, each with evidence, the proposed change, the reference implementation
+  and the workaround it makes obsolete; the workarounds carry `UPSTREAM: <ID>`
+  markers and `tests/ConfigData/UpstreamChanges.Tests.ps1` keeps markers and
+  register consistent. `docs/upstream-changes-composite-drift.md` lists the 64
+  of 179 composites of DscConfig.M365 0.8.0 that differ from Microsoft365DSC
+  2.26.1021.1. A scratch build with regenerated composites found DBH-4:
+  DscBuildHelpers writes an empty block for nullable properties of embedded
+  types, so `DefaultUserRolePermissions` cannot be set. The final default
+  workflow in the working tree was green (22 tasks, 0 errors, 0 warnings, 6 min
+  27 s), and so were two runs in a session that already held the M365DSC engine.
+- 2026-10-29 Made `.\build.ps1` build Microsoft365DSC `2.26.1021.1` in about 6
+  to 8 minutes instead of failing after more than an hour; the user chose to
+  keep 2.x and to implement the pipeline changes here. `PrepareDscCompile`
+  makes `PSDesiredStateConfiguration` 2.0.8 the only DSC engine and fills the
+  DscBuildHelpers metadata table for the 11 resources and types that the 8 used
+  composites wrap (33 to 48 s). `source/CompileRootConfiguration.ps1` finds the
+  composites by folder layout (0.3 s, was 21 min), and an override of
+  `CompressModulesWithChecksum` selects the modules to zip without listing
+  their resources (2.3 s, was about 21 min). `source/` lost 5 keys that 2.x no
+  longer has; 3 are a functional change, because the
+  `DefaultUserRoleAllowedTo*` settings of `cAADAuthorizationPolicy` are no
+  longer asserted. `tests/ConfigData/DscCompile.Tests.ps1` adds 24 tests.
+- 2026-10-29 Investigated the build that "hangs for an hour" at `Reading DSC
+  Resource metadata...` with Microsoft365DSC `2.26.1021.1`. It computes, it does
+  not hang: Microsoft365DSC 2.x defines its 541 resources as classes in 10 MB of
+  PowerShell, the engine caches nothing for them, and every `Import-DscResource
+  -ModuleName Microsoft365DSC` re-parses all of it (3.4 to 7.9 s). The pipeline
+  imports all 205 composites of DscConfig.M365 and DscConfig.Demo twice (179 of
+  them import Microsoft365DSC), and `Initialize-DscResourceMetaInfo` adds about
+  1,400 `Get-DscResourceProperty` calls, while the project uses 8 composites.
+  The second failure, two modules named `PSDesiredStateConfiguration`, comes
+  from the first `Get-DscResource` auto-loading
+  `M365DSC.PSDesiredStateConfiguration`. Microsoft365DSC `1.26.909.1` builds
+  green in 6 min 5 s. Details in `debugging-insights.md`.
+- 2026-10-29 Fixed `.\build.ps1` failing in `TestConfigData` after the bump to
+  Microsoft365DSC `2.26.1021.1`. The four hand-kept `Microsoft.Graph.*` pins
+  stayed at `2.35.1` while the generated `Microsoft.Graph.Authentication` pin
+  moved to `2.41.1`, so the restore saved a second Authentication copy and 26
+  `AzHelpers.Tests.ps1` tests did not run (`Assembly with same name is already
+  loaded`). The pins now follow the Authentication pin and
+  `tests/ConfigData/RequiredModules.Tests.ps1` guards the equality;
+  `TestConfigData` passes with 170 tests. The next failure, in
+  `CompileRootConfiguration` after 1 h 10 min, was `The term
+  'PSDesiredStateConfiguration PSDesiredStateConfiguration' is not recognized`:
+  Microsoft365DSC 2.x ships its own DSC engine,
+  `M365DSC.PSDesiredStateConfiguration`, whose inner module is also named
+  `PSDesiredStateConfiguration`; that breaks `RootConfiguration.ps1` of
+  Sampler.DscPipeline. The entry above resolves it.
+- 2026-08-04 to 2026-08-17 Updated the dependencies to Microsoft365DSC
+  `1.26.729.2` (the regenerated 14-entry dependency block,
+  PSDesiredStateConfiguration `2.0.8`, PSResourceGet `1.2.0`) and fixed the
+  `lab/` scripts, the Azure DevOps pipelines and the build on top of it. The
+  detail is in `CHANGELOG.md` and in the git history of this file; what still
+  matters:
+  - `HasExchangeOnline` and `HasSharePointOnline` per environment are the
+    switches for tenants without those workloads. `source/Datum.yml` swaps the
+    Exchange or SharePoint layers for an empty `ExchangeDisabled` or
+    `SharePointDisabled` layer, the export skips the `EXO*` or `SPO*`
+    components, and the `lab/` scripts skip their Exchange Online work.
+  - `Connect-M365DscAzure` forwards the configured subscription, and
+    `Disconnect-M365Dsc` falls back to `Clear-AzContext -Scope Process` for the
+    MSAL `MsalCacheHelper.RegisterCache` mismatch.
+  - `RequiredModules.psd1` declares the four `Microsoft.Graph.*` modules that
+    the `lab/` scripts call, because Microsoft365DSC stopped pinning them.
+  - `lab/00 Prep.ps1` guards against shadowed `Az.Accounts` copies, restores
+    the default module path and pins Pester `5.7.1` for `AutomatedLabTest`;
+    `lab/31 Agent Setup.ps1` installs its software with Chocolatey.
+  - `pipelines/buildTemplate.yml` calls `./build.ps1` from an inline `script`,
+    because `Enable shell tasks arguments validation` rejects the filter script
+    block in the `arguments` input of `PowerShell@2`.
+  - Pester 6.1.0 words any terminating error of user code as `A 'break' or
+    'continue' statement ... escaped from your code` (`debugging-insights.md`).
+  - The Dev tenant's lapsed subscription (`AADSTS500014`) and its missing
+    SharePoint Online are tenant conditions, not code defects.
+- 2026-08-04 Created the Memory Bank base and verified the full build green (21
+  tasks, 0 errors, 0 warnings); `017fc2a` fixed `TestConfigData` for Pester 6.
 - 2025-08-04 `3df7af7`, the last commit before the dormant period.
 - 2025-08-02 Export guidance for Azure DevOps added; `-UseModuleFast` disabled
   across the pipeline definitions.
@@ -201,6 +168,9 @@ August 2026 levels.
 
 ### Carried over
 
+- Decide the Microsoft365DSC direction: return to `1.26.x`, or keep `2.x` with a
+  pipeline that tolerates `M365DSC.PSDesiredStateConfiguration`, a composite
+  build made for 2.x and `source/` changes for 5 removed keys.
 - Decide whether to move `DscConfig.Demo` forward to its preview release.
 - Settle the Pester policy: 6.0.1 is resolved and 5.7.1 sits disabled as
   `_5.7.1` in `output/RequiredModules`.

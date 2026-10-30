@@ -6,9 +6,14 @@ AllowInvitesFrom: everyone
 AllowedToSignUpEmailBasedSubscriptions: true
 AllowedToUseSspr: true
 BlockMsolPowerShell: false
-DefaultUserRoleAllowedToCreateApps: true
-DefaultUserRoleAllowedToCreateSecurityGroups: true
-DefaultUserRoleAllowedToReadOtherUsers: true
+# Microsoft365DSC 2.x replaced the properties DefaultUserRoleAllowedTo* by the embedded property DefaultUserRolePermissions, which
+# DscConfig.M365 0.8.0 does not expose. When a composite resource accepts it, and DscBuildHelpers writes nullable embedded properties
+# (DBH-4), set the three values like this:
+# UPSTREAM: DC365-1 (see docs/upstream-changes.md)
+#DefaultUserRolePermissions:
+#  AllowedToCreateApps: true
+#  AllowedToCreateSecurityGroups: true
+#  AllowedToReadOtherUsers: true
 GuestUserRole: Guest
 #PermissionGrantPolicyIdsAssignedToDefaultUserRole : @()
 Ensure: Present

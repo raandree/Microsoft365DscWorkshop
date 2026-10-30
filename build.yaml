@@ -57,6 +57,7 @@ BuildWorkflow:
     - CompileDatumRsop
     - Set_PSModulePath
     - TestDscResources
+    - PrepareDscCompile # UPSTREAM: SDP-2, SDP-4, DBH-1 (see docs/upstream-changes.md)
     - CompileRootConfiguration
     - CompileRootMetaMof
 

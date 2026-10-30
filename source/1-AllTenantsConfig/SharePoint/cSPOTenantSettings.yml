@@ -1,6 +1,8 @@
 ApplyAppEnforcedRestrictionsToAdHocRecipients: True
 CommentsOnSitePagesDisabled: False
-Ensure: Present
+# Microsoft365DSC 2.x removed the property Ensure from this single instance resource.
+# UPSTREAM: DC365-1 (see docs/upstream-changes.md)
+#Ensure: Present
 FilePickerExternalImageSearchEnabled: True
 HideDefaultThemes: False
 IsSingleInstance: Yes

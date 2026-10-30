@@ -129,6 +129,7 @@ LoadDatumConfigData | Load the configuration data from [source](/source/).
 TestConfigData | Invoke the tests defined in the folder [tests](/tests/).
 CompileDatumRsop | Merge the configuration data into one large hash table.
 TestDscResources | Make sure all DSC dependencies are met.
+PrepareDscCompile | Prepare the DSC engine and the resource metadata for the compilation of class-based DSC modules such as Microsoft365DSC 2.x.
 CompileRootConfiguration | Create the MOF file (the instruction file to configure the Azure tenant).
 CompileRootMetaMof | Create the Meta MOF files which connect the worker machines to the Azure Automation account.
 

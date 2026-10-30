@@ -1,5 +1,5 @@
 @{
-    PSDependOptions                                        = @{
+    PSDependOptions                                = @{
         AddToPath  = $true
         Target     = 'output\RequiredModules'
         Parameters = @{
@@ -8,64 +8,67 @@
         }
     }
 
-    InvokeBuild                                            = 'latest'
-    PSScriptAnalyzer                                       = 'latest'
-    Pester                                                 = 'latest'
-    Plaster                                                = 'latest'
-    ModuleBuilder                                          = 'latest'
-    ChangelogManagement                                    = 'latest'
-    Sampler                                                = 'latest'
-    'Sampler.GitHubTasks'                                  = 'latest'
-    PowerShellForGitHub                                    = 'latest'
-    'Sampler.DscPipeline'                                  = 'latest'
-    MarkdownLinkCheck                                      = 'latest'
-    'DscResource.AnalyzerRules'                            = 'latest'
-    DscBuildHelpers                                        = @{
+    InvokeBuild                                    = 'latest'
+    PSScriptAnalyzer                               = 'latest'
+    Pester                                         = 'latest'
+    Plaster                                        = 'latest'
+    ModuleBuilder                                  = 'latest'
+    ChangelogManagement                            = 'latest'
+    Sampler                                        = 'latest'
+    'Sampler.GitHubTasks'                          = 'latest'
+    PowerShellForGitHub                            = 'latest'
+    'Sampler.DscPipeline'                          = 'latest'
+    MarkdownLinkCheck                              = 'latest'
+    'DscResource.AnalyzerRules'                    = 'latest'
+    DscBuildHelpers                                = @{
         Version    = 'latest'
         Parameters = @{
             AllowPrerelease = $true
         }
     }
-    Datum                                                  = 'latest'
-    ProtectedData                                          = 'latest'
-    'Datum.ProtectedData'                                  = 'latest'
-    'Datum.InvokeCommand'                                  = 'latest'
-    Configuration                                          = 'latest'
-    Metadata                                               = 'latest'
-    xDscResourceDesigner                                   = 'latest'
-    'DscResource.Test'                                     = 'latest'
+    Datum                                          = 'latest'
+    ProtectedData                                  = 'latest'
+    'Datum.ProtectedData'                          = 'latest'
+    'Datum.InvokeCommand'                          = 'latest'
+    Configuration                                  = 'latest'
+    Metadata                                       = 'latest'
+    xDscResourceDesigner                           = 'latest'
+    'DscResource.Test'                             = 'latest'
 
     # Composites
-    'DscConfig.M365'                                       = '0.7.0-preview0001'
-    'DscConfig.Demo'                                       = 'latest'
+    'DscConfig.M365'                               = '0.8.0-preview0001'
+    'DscConfig.Demo'                               = 'latest'
 
     #DSC Resources
-    xPSDesiredStateConfiguration                           = '9.2.1'
-    ComputerManagementDsc                                  = '10.0.0'
-    NetworkingDsc                                          = '9.1.0'
-    JeaDsc                                                 = '0.7.2'
-    WebAdministrationDsc                                   = '4.2.1'
-    FileSystemDsc                                          = '1.1.1'
-    SecurityPolicyDsc                                      = '2.10.0.0'
-    xDscDiagnostics                                        = '2.8.0'
-    PSDesiredStateConfiguration                            = '2.0.8'
+    xPSDesiredStateConfiguration                   = '9.2.1'
+    ComputerManagementDsc                          = '10.0.0'
+    NetworkingDsc                                  = '9.1.0'
+    JeaDsc                                         = '0.7.2'
+    WebAdministrationDsc                           = '4.2.1'
+    FileSystemDsc                                  = '1.1.1'
+    SecurityPolicyDsc                              = '2.10.0.0'
+    xDscDiagnostics                                = '2.8.0'
+    PSDesiredStateConfiguration                    = '2.0.8'
 
     # Azure
     # Az.KeyVault 6.4.2 is the newest release that works with the Az.Accounts version Microsoft365DSC pins below.
-    'Az.KeyVault'                                          = '6.4.2'
-    'Az.ManagedServiceIdentity'                            = '2.0.0'
+    'Az.KeyVault'                                  = '6.4.2'
+    'Az.ManagedServiceIdentity'                    = '2.0.0'
 
     # Microsoft Graph SDK
-    # Microsoft365DSC 1.26.729.2 dropped these and now pins Microsoft.Graph.Authentication alone,
-    # but the lab scripts still call the Mg* cmdlets. Keep the version in sync with the
-    # Microsoft.Graph.Authentication pin in the generated block below.
-    'Microsoft.Graph.Applications'                         = '2.35.1'
-    'Microsoft.Graph.Identity.DirectoryManagement'         = '2.35.1'
-    'Microsoft.Graph.Identity.Governance'                  = '2.35.1'
-    'Microsoft.Graph.Users'                                = '2.35.1'
+    # Microsoft365DSC dropped these in 1.26.729.2 and pins Microsoft.Graph.Authentication alone,
+    # but the lab scripts still call the Mg* cmdlets. Set the version to the Microsoft.Graph.Authentication
+    # pin in the generated block below on every Microsoft365DSC update. Each of these manifests requires
+    # exactly that version of Microsoft.Graph.Authentication, and a pin that differs makes the restore save
+    # a second copy of it that cannot be loaded next to the first
+    # ('Assembly with same name is already loaded'). tests\ConfigData\RequiredModules.Tests.ps1 guards this.
+    'Microsoft.Graph.Applications'                 = '2.41.1'
+    'Microsoft.Graph.Identity.DirectoryManagement' = '2.41.1'
+    'Microsoft.Graph.Identity.Governance'          = '2.41.1'
+    'Microsoft.Graph.Users'                        = '2.41.1'
 
     # Microsoft365DSC
-    Microsoft365DSC                                        = '1.26.729.2'
+    Microsoft365DSC                                = '2.26.1021.1'
 
     <#
         To update Microsoft365DSC and its dependencies, do the following steps:
@@ -75,6 +78,7 @@
         4. Discard all the delete changes reported by git for the output folder if there are any.
         5. Run the build script to download all the required modules: .\build.ps1 -UseModuleFast -ResolveDependency -Tasks noop
         6. Run 'Update-M365DSCDependencies -ValidateOnly' to get the differences between the old and new dependencies and update the RequiredModules.psd1 file accordingly.
+           Also set the four Microsoft.Graph.* pins above the generated block to the new Microsoft.Graph.Authentication version.
         7. Commit the changes to the RequiredModules.psd1 file.
         8. Start the build script to build the module: .\build.ps1 -UseModuleFast -ResolveDependency
 
@@ -83,19 +87,21 @@
         (Import-PowerShellDataFile -Path '.\output\RequiredModules\Microsoft365DSC\*\Dependencies\Manifest.psd1').Dependencies | ForEach-Object { "'{0}' = '{1}'" -f $_.ModuleName, $_.RequiredVersion } | Set-Clipboard
     #>
 
-    'Az.Accounts'                                          = '5.3.2'
-    'Az.ResourceGraph'                                     = '1.2.1'
-    'Az.Resources'                                         = '9.0.1'
-    'Az.Subscription'                                      = '0.12.0'
-    'Az.Security'                                          = '1.8.0'
-    'Az.SecurityInsights'                                  = '3.2.1'
-    'DSCParser'                                            = '3.0.0.5'
-    'ExchangeOnlineManagement'                             = '3.9.2'
-    'Microsoft.Graph.Authentication'                       = '2.35.1'
-    'MicrosoftTeams'                                       = '7.6.0'
-    'MSCloudLoginAssistant'                                = '1.1.72'
-    'PnP.PowerShell'                                       = '1.12.0'
-    'ReverseDSC'                                           = '2.0.0.34'
-    'PSParallelPipeline'                                   = '1.2.5'
+    'Az.Accounts'                                  = '5.3.2'
+    'Az.ResourceGraph'                             = '1.2.1'
+    'Az.Resources'                                 = '9.0.1'
+    'Az.Subscription'                              = '0.12.0'
+    'Az.Security'                                  = '1.8.0'
+    'Az.SecurityInsights'                          = '3.2.1'
+    'DSCParser'                                    = '3.1.0.7'
+    'M365DSC.mgx'                                  = '2.1.9'
+    'M365DSC.PSDesiredStateConfiguration'          = '3.1.10'
+    'ExchangeOnlineManagement'                     = '3.9.2'
+    'Microsoft.Graph.Authentication'               = '2.41.1'
+    'MicrosoftTeams'                               = '8.0.0'
+    'MSCloudLoginAssistant'                        = '1.2.9'
+    'PnP.PowerShell'                               = '3.4.1'
+    'ReverseDSC'                                   = '3.0.0.0'
+    'PSParallelPipeline'                           = '1.3.0'
 
 }

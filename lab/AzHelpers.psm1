@@ -1181,7 +1181,7 @@ function Disconnect-M365Dsc
         }
         else
         {
-            # Az.Accounts 5.3.2 is built against MSAL 4.65, Microsoft.Graph.Authentication 2.35.1 loads 4.78 into the same process.
+            # Az.Accounts 5.3.2 is built against MSAL 4.65, while Microsoft.Graph.Authentication ships a newer MSAL (4.90 in 2.41.1) that is loaded into the same process.
             Write-Warning "'Disconnect-AzAccount' failed on the MSAL assembly conflict between 'Az.Accounts' and 'Microsoft.Graph.Authentication'. Clearing the Azure context of this process instead. The error was: $($disconnectError[0].Exception.Message)"
             Clear-AzContext -Scope Process -Force
         }

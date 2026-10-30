@@ -33,17 +33,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configured without SharePoint Online, so no `cSPO*` configuration is composed
   or compiled for it, and `.build/Export/ExportTenantData.ps1` skips the `SPO*`
   components. A new configuration data test guards the mechanism.
+- Add the `PrepareDscCompile` build task and `.build/DscCompileHelpers.ps1` to
+  keep `CompileRootConfiguration` fast with class-based modules such as
+  `Microsoft365DSC` 2.x. The task makes the pinned `PSDesiredStateConfiguration`
+  the only DSC engine of the build and fills the resource metadata of
+  `DscBuildHelpers` for the resources that the composite resources of the nodes
+  wrap, instead of leaving that to a scan of every resource of every module.
+  `source/CompileRootConfiguration.ps1` and `source/RootConfiguration.ps1`
+  override the files of `Sampler.DscPipeline`, and `.build/DscCompileTasks.ps1`
+  overrides its `CompressModulesWithChecksum` task, which now selects the
+  modules to compress without listing their resources. A new configuration data
+  test guards the helpers.
+- Add the register `docs/upstream-changes.md`. It lists every change that the
+  build needs in `Sampler.DscPipeline`, `DscBuildHelpers`, `DscConfig.M365` and
+  `M365DSC.PSDesiredStateConfiguration`, with the evidence, a diff where the
+  change is small, and the workaround of this repository that the change makes
+  obsolete. `docs/upstream-changes-composite-drift.md` lists the composite
+  resources of `DscConfig.M365` that differ from `Microsoft365DSC` 2.x. Each
+  workaround carries a comment with the ID of its entry, and the new
+  configuration data test `tests/ConfigData/UpstreamChanges.Tests.ps1` fails
+  when the markers and the register disagree. One entry describes a defect that
+  this project does not hit yet: `DscBuildHelpers` writes an empty block for the
+  nullable properties of the embedded types of `Microsoft365DSC` 2.x, so a
+  node cannot set `DefaultUserRolePermissions` until it unwraps them.
 
 ### Changed
 
-- Update `Microsoft365DSC` to `1.26.729.2` and regenerate its dependency block.
+- **Breaking:** stop asserting `DefaultUserRoleAllowedToCreateApps`,
+  `DefaultUserRoleAllowedToCreateSecurityGroups` and
+  `DefaultUserRoleAllowedToReadOtherUsers` in
+  `source/1-AllTenantsConfig/AzureAd/cAADAuthorizationPolicy.yml`.
+  `Microsoft365DSC` 2.x moved them into `DefaultUserRolePermissions`, and
+  `DscConfig.M365` `0.8.0` was generated for 1.x, so its composite resource
+  does not expose that property. The tenant keeps whatever values it has for
+  these three settings.
+- Remove `Ensure: Present` from `cSPOTenantSettings.yml` and
+  `cSPOAccessControlSettings.yml`, because the single-instance resources of
+  `Microsoft365DSC` 2.x have no `Ensure` property. No node uses these layers
+  yet.
+- Update `Microsoft365DSC` to `2.26.1021.1` and regenerate its dependency block.
   The new release drops the granular `Microsoft.Graph.*` and
   `Microsoft.PowerApps.Administration.PowerShell` pins in favour of
   `Microsoft.Graph.Authentication` alone, and adds `Az.Subscription`,
-  `Az.Security` and `PSParallelPipeline`.
+  `Az.Security`, `PSParallelPipeline`, `M365DSC.mgx` and
+  `M365DSC.PSDesiredStateConfiguration`. The `Microsoft.Graph.*` pins that
+  `RequiredModules.psd1` keeps for the lab scripts follow the
+  `Microsoft.Graph.Authentication` pin (`2.41.1`), because their manifests
+  require exactly that version of it, and a new configuration data test guards
+  that.
 - Update `ComputerManagementDsc` to `10.0.0`, `NetworkingDsc` to `9.1.0`,
   `PSDesiredStateConfiguration` to `2.0.8` and `Az.KeyVault` to `6.4.2`.
-- Update `DscConfig.M365` to `0.7.0-preview0001`.
+- Update `DscConfig.M365` to `0.8.0-preview0001`.
 - Bootstrap `Microsoft.PowerShell.PSResourceGet` `1.2.0` instead of `1.0.1`.
 - Pin `AutomatedLab` to `5.61.0` in `lab/00 Prep.ps1` instead of
   `5.57.3-preview`, and add comment-based help to the script.
@@ -64,6 +104,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   task runs. The `BeforeAll` now imports a module only when the session holds
   none of that name, and reads the version to pin from `RequiredModules.psd1`
   instead of carrying a second copy of the pins.
+- Fix the build running for more than an hour after updating `Microsoft365DSC`
+  to `2.26.1021.1` and then failing in `CompileRootConfiguration` with `The term
+  'PSDesiredStateConfiguration PSDesiredStateConfiguration' is not recognized`.
+  Version 2 of the module is class-based and the DSC engine caches nothing for
+  such resources, so the pipeline, which imports 205 composite resources twice
+  (179 of them import `Microsoft365DSC`)
+  and looks up about 1,400 resource properties, parsed the 10 MB of class files
+  again and again while the progress bars of `Get-DscResource` never completed.
+  The failure at the end had a second cause: the first `Get-DscResource` loaded
+  the second DSC engine `M365DSC.PSDesiredStateConfiguration` through module
+  auto-loading, the pinned `PSDesiredStateConfiguration` was loaded next to it
+  later, and `RootConfiguration.ps1` of `Sampler.DscPipeline` cannot handle two
+  modules of that name. The build now takes about 6.5 minutes.
 - Fix the `Build DSC Artifacts` and `Pack DSC Artifacts` steps failing with
   `##[error]Detected characters in arguments that may not be executed correctly
   by the shell. Please escape special characters using backtick`. The
